@@ -6,7 +6,7 @@ from app.models.video import CompressionMode, ResolutionOption
 class VideoCompressionOptions(BaseModel):
     compression_mode: CompressionMode = CompressionMode.BALANCED
     resolution: ResolutionOption = ResolutionOption.ORIGINAL
-    target_size_mb: int | None = Field(default=None, gt=0)
+    target_size_bytes: int | None = Field(default=None, gt=0)
 
 
 class VideoStreamResponse(BaseModel):

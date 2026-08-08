@@ -1,4 +1,5 @@
 export * from "./Badge";
+export * from "./AutoScrollRegion";
 export * from "./Button";
 export * from "./Card";
 export * from "./Container";
@@ -6,4 +7,5 @@ export * from "./Divider";
 export * from "./Input";
 export * from "./Modal";
 export * from "./Progress";
+export * from "./ProgressRing";
 export * from "./Select";

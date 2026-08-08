@@ -99,7 +99,7 @@ Completed R2 jobs use `GET /api/v1/jobs/{job_id}/download` to obtain a temporary
 
 3. **Validate and create job** — `POST /api/v1/uploads/{upload_id}/complete`.
 
-   No request body. The server verifies object existence and size, downloads privately for ffprobe validation, applies policy limits, then returns `202` with the public job fields: `id`, `status`, `progress`, `stage`, `message`, and input metadata. Errors include `FILE_TOO_LARGE`, `VIDEO_TOO_LONG`, `RESOLUTION_NOT_ALLOWED`, and safe `REQUEST_FAILED` validation/probe errors.
+   Send optional JSON compression options: `{ "compression_mode": "balanced", "resolution": "original", "target_size_bytes": null }`. The server verifies object existence and size, downloads privately for ffprobe validation, applies policy limits, then returns `202` with the public job fields: `id`, `status`, `progress`, `stage`, `message`, and input metadata. Errors include `FILE_TOO_LARGE`, `VIDEO_TOO_LONG`, `RESOLUTION_NOT_ALLOWED`, and safe `REQUEST_FAILED` validation/probe errors.
 
 4. **Poll job** — `GET /api/v1/jobs/{job_id}`.
 

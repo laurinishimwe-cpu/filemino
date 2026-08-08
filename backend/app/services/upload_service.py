@@ -4,6 +4,7 @@ from uuid import UUID
 
 from app.core.exceptions import FileTooLargeError, NotFoundError, ValidationError
 from app.models.job import utc_now
+from app.models.video import CompressionMode, ResolutionOption
 from app.models.upload import Upload
 from app.repositories.upload_repository import UploadRepository
 from app.services.job_service import JobService
@@ -25,7 +26,14 @@ class UploadService:
         self._repository.create(upload, self._retention_seconds)
         return upload, signed
 
-    def complete_video_upload(self, upload_id: UUID, job_service: JobService):
+    def complete_video_upload(
+        self,
+        upload_id: UUID,
+        job_service: JobService,
+        compression_mode: CompressionMode | None = None,
+        target_size_bytes: int | None = None,
+        resolution: ResolutionOption | None = None,
+    ):
         upload = self._get(upload_id)
         info = self._storage.object_info(upload.storage_key)
         if info is None: raise ValidationError("Upload has not completed.")
@@ -34,7 +42,7 @@ class UploadService:
         elif info.size_bytes > self._max_upload_size_bytes: raise FileTooLargeError()
         metadata = self._probe_service.probe_storage(upload.storage_key, upload.original_filename, info.size_bytes)
         complexity=self._policy.validate_video(metadata).value if self._policy else None
-        job = job_service.create_video_job(upload.original_filename, compression_mode=None, target_size_bytes=None, resolution=None, input_metadata={"size_bytes":info.size_bytes,"duration_seconds": metadata.duration_seconds, "width": metadata.video.width, "height": metadata.video.height,"complexity": complexity}, input_storage_key=upload.storage_key,client_hash=upload.client_hash, route_by_metadata=True)
+        job = job_service.create_video_job(upload.original_filename, compression_mode=compression_mode, target_size_bytes=target_size_bytes, resolution=resolution, input_metadata={"size_bytes":info.size_bytes,"duration_seconds": metadata.duration_seconds, "width": metadata.video.width, "height": metadata.video.height,"complexity": complexity}, input_storage_key=upload.storage_key,client_hash=upload.client_hash, route_by_metadata=True)
         self._repository.delete(upload_id)
         return job
 

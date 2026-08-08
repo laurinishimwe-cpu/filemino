@@ -9,6 +9,7 @@ from app.core.config import get_settings
 from app.core.exceptions import ValidationError
 from app.schemas.job import JobResponse
 from app.schemas.upload import UploadInitializeRequest, UploadInitializeResponse
+from app.schemas.video import VideoCompressionOptions
 from app.services.job_service import JobService
 from app.services.upload_service import UploadService
 from app.services.rate_limit_service import RateLimitService
@@ -24,8 +25,19 @@ def initialize_upload(request: UploadInitializeRequest, http_request: Request, s
 
 
 @router.post("/{upload_id}/complete", response_model=JobResponse, status_code=status.HTTP_202_ACCEPTED)
-def complete_upload(upload_id: UUID, upload_service: Annotated[UploadService, Depends(get_upload_service)], job_service: Annotated[JobService, Depends(get_job_service)]) -> JobResponse:
-    return JobResponse.model_validate(upload_service.complete_video_upload(upload_id, job_service))
+def complete_upload(
+    upload_id: UUID,
+    upload_service: Annotated[UploadService, Depends(get_upload_service)],
+    job_service: Annotated[JobService, Depends(get_job_service)],
+    options: VideoCompressionOptions | None = None,
+) -> JobResponse:
+    return JobResponse.model_validate(upload_service.complete_video_upload(
+        upload_id,
+        job_service,
+        compression_mode=None if options is None else options.compression_mode,
+        target_size_bytes=None if options is None else options.target_size_bytes,
+        resolution=None if options is None else options.resolution,
+    ))
 
 
 @router.put("/{upload_id}/content", status_code=status.HTTP_204_NO_CONTENT)
