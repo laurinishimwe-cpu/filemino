@@ -8,10 +8,11 @@ from app.queue.base import JobQueue
 
 
 class RedisRQQueue(JobQueue):
-    def __init__(self, redis_client: Redis, queue_name: str, gpu_queue_name: str = "video-gpu") -> None:
+    def __init__(self, redis_client: Redis, queue_name: str, gpu_queue_name: str = "video-gpu", image_queue_name: str = "image-cpu") -> None:
         self._redis = redis_client
         self._queue = Queue(queue_name, connection=redis_client)
         self._gpu_queue_name = gpu_queue_name
+        self._image_queue_name = image_queue_name
 
     def enqueue_compression(self, job_id: UUID, queue_name: str = "video-cpu") -> None:
         queue = Queue(queue_name, connection=self._redis)
@@ -21,6 +22,14 @@ class RedisRQQueue(JobQueue):
             str(job_id),
             job_id=str(job_id),
         )
+
+    def enqueue_image_compression(self, job_id: UUID, queue_name: str = "image-cpu") -> None:
+        queue = Queue(queue_name, connection=self._redis)
+        queue.enqueue("app.workers.image_compression_worker.run_image_compression_job", str(job_id), job_id=str(job_id))
+
+    def enqueue_image_conversion(self, job_id: UUID, queue_name: str = "image-cpu") -> None:
+        queue = Queue(queue_name, connection=self._redis)
+        queue.enqueue("app.workers.image_conversion_worker.run_image_conversion_job", str(job_id), job_id=str(job_id))
 
     def cancel(self, job_id: UUID) -> bool:
         try:

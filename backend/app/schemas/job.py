@@ -5,6 +5,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.models.job import JobStatus
+from app.models.image import ImageCompressionMode, ImageConversionOutputFormat, ImageOutputFormat, ImageResizeOption, JobTool
 from app.models.video import CompressionMode, ResolutionOption
 
 
@@ -24,14 +25,27 @@ class JobResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     original_filename: str
-    compression_mode: CompressionMode
+    tool: JobTool = JobTool.VIDEO
+    compression_mode: CompressionMode | ImageCompressionMode
     target_size_bytes: int | None = None
     resolution: ResolutionOption
+    image_output_format: ImageOutputFormat | None = None
+    image_resize: ImageResizeOption | None = None
+    image_quality_percent: int | None = Field(default=None, ge=1, le=100)
+    image_resize_percent: int | None = Field(default=None, ge=1, le=100)
+    image_custom_width: int | None = Field(default=None, ge=1)
+    image_custom_height: int | None = Field(default=None, ge=1)
+    image_lock_aspect_ratio: bool = True
+    image_allow_resize_for_target: bool = True
+    image_conversion_output_format: ImageConversionOutputFormat | None = None
+    image_conversion_quality_percent: int | None = Field(default=None, ge=1, le=100)
+    image_conversion_background_color: str | None = None
     progress: int = Field(ge=0, le=100)
     stage: str
     message: str
     input_metadata: dict[str, Any] | None = None
     output_metadata: dict[str, Any] | None = None
+    target_failure_context: dict[str, Any] | None = None
     error_code: str | None = None
     safe_error_message: str | None = None
     processing_started_at: datetime | None = None

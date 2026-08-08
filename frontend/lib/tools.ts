@@ -8,10 +8,10 @@ export type ToolDefinition = {
 
 export const fluxFileTools: ToolDefinition[] = [
   { name: "Video Compressor", icon: "video", href: "/video-compressor" },
-  { name: "Image Compressor", icon: "image" },
+  { name: "Image Compressor", icon: "image", href: "/image-compressor" },
   { name: "Remove Background", icon: "transparent-image" },
   { name: "Video to MP3", icon: "audio" },
-  { name: "Image Converter", icon: "convert" },
+  { name: "Image Converter", icon: "convert", href: "/image-converter" },
   { name: "Video Converter", icon: "convert" },
 ];
 

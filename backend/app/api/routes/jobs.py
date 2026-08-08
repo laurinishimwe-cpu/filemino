@@ -13,6 +13,7 @@ from app.api.dependencies import get_job_service, get_storage
 from app.core.config import get_settings
 from app.core.exceptions import ValidationError
 from app.models.job import JobStatus, utc_now
+from app.models.image import JobTool
 from app.schemas.job import DownloadResponse, JobResponse
 from app.services.job_service import JobService
 from app.storage.base import FileStorage
@@ -51,5 +52,18 @@ def download_local_content(job_id: UUID, service: Annotated[JobService, Depends(
     if job.status is not JobStatus.COMPLETED or not job.output_storage_key:
         raise ValidationError("The output is not ready for download.")
     workspace = tempfile.mkdtemp(dir=settings.temp_directory)
-    output_path = storage.download_to(job.output_storage_key, Path(workspace) / "download.mp4")
-    return FileResponse(output_path, filename="compressed-video.mp4", media_type="video/mp4", background=BackgroundTask(shutil.rmtree, workspace, True))
+    suffix, filename, media_type = _download_details(job.tool, job.output_metadata)
+    output_path = storage.download_to(job.output_storage_key, Path(workspace) / f"download{suffix}")
+    return FileResponse(output_path, filename=filename, media_type=media_type, background=BackgroundTask(shutil.rmtree, workspace, True))
+
+
+def _download_details(tool: JobTool, metadata: dict | None) -> tuple[str, str, str]:
+    if tool is not JobTool.IMAGE:
+        return ".mp4", "compressed-video.mp4", "video/mp4"
+    image_format = (metadata or {}).get("format")
+    details = {
+        "JPEG": (".jpg", "compressed-image.jpg", "image/jpeg"),
+        "PNG": (".png", "compressed-image.png", "image/png"),
+        "WEBP": (".webp", "compressed-image.webp", "image/webp"),
+    }
+    return details.get(image_format, (".image", "compressed-image", "application/octet-stream"))

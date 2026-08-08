@@ -1,4 +1,4 @@
-import type { CompressionOptions, DownloadResponse, JobResponse, UploadInitializeResponse } from "./types";
+import type { CompressionOptions, DownloadResponse, ImageCompressionOptions, ImageConversionOptions, JobResponse, UploadInitializeResponse } from "./types";
 
 const apiBaseUrl = (process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:8000/api/v1").replace(/\/$/, "");
 
@@ -75,6 +75,26 @@ export async function completeUpload(uploadId: string, options: CompressionOptio
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(options),
+    signal,
+  });
+  return responseJson<JobResponse>(response);
+}
+
+export async function createImageCompressionJob(uploadId: string, options: ImageCompressionOptions, signal?: AbortSignal) {
+  const response = await fetch(apiUrl("/images/jobs"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ upload_id: uploadId, ...options }),
+    signal,
+  });
+  return responseJson<JobResponse>(response);
+}
+
+export async function createImageConversionJob(uploadId: string, options: ImageConversionOptions, signal?: AbortSignal) {
+  const response = await fetch(apiUrl("/images/conversion-jobs"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ upload_id: uploadId, ...options }),
     signal,
   });
   return responseJson<JobResponse>(response);

@@ -55,3 +55,51 @@ class TooManyActiveJobsError(ApplicationError):
     status_code = 429
     public_message = "Too many active jobs are already running."
     code = "TOO_MANY_ACTIVE_JOBS"
+
+
+class InvalidImageError(ApplicationError):
+    status_code = 422
+    public_message = "The uploaded file is not a valid image."
+    code = "INVALID_IMAGE"
+
+
+class UnsupportedAnimatedImageError(ApplicationError):
+    status_code = 422
+    public_message = "Animated images are not supported yet."
+    code = "UNSUPPORTED_ANIMATED_IMAGE"
+
+
+class ImageDimensionsExceededError(ApplicationError):
+    status_code = 422
+    public_message = "The image dimensions exceed the allowed limit."
+    code = "IMAGE_DIMENSIONS_EXCEEDED"
+
+
+class InvalidTargetSizeError(ApplicationError):
+    status_code = 422
+    public_message = "The requested image target size is invalid."
+    code = "INVALID_TARGET_SIZE"
+
+
+class TargetSizeUnreachableError(ApplicationError):
+    status_code = 422
+    public_message = "The requested target size cannot be reached safely."
+    code = "TARGET_SIZE_UNREACHABLE"
+
+
+class IncompatibleImageOutputError(ApplicationError):
+    status_code = 422
+    public_message = "The selected output format is not compatible with this image."
+    code = "INCOMPATIBLE_IMAGE_OUTPUT"
+
+
+class UnsupportedImageFormatError(ApplicationError):
+    status_code = 415
+    public_message = "This image format is not supported for conversion."
+    code = "UNSUPPORTED_IMAGE_FORMAT"
+
+
+class UnsupportedImageConversionError(ApplicationError):
+    status_code = 422
+    public_message = "This conversion is not supported."
+    code = "UNSUPPORTED_CONVERSION"

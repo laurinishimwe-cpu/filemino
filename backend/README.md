@@ -40,6 +40,16 @@ On Linux production, use the normal RQ worker:
 rq worker --url redis://localhost:6379/0 video-cpu
 ```
 
+Image compression is a separate CPU queue and can be scaled independently:
+
+```bash
+# Windows
+rq worker -w app.workers.windows_spawn_worker.WindowsSpawnWorker --url redis://localhost:6379/0 image-cpu
+
+# Linux production
+rq worker --url redis://localhost:6379/0 image-cpu
+```
+
 An NVIDIA-capable worker is optional and uses the same platform-specific command with `video-gpu` as its queue name. `SimpleWorker` is only appropriate for isolated tests, not production-style video processing.
 
 ## Jobs and queue processing
@@ -75,6 +85,23 @@ NVENC presets are separate from CPU x264 presets: NVENC uses `p` presets and CQ 
 `POST /api/v1/videos/probe` accepts a multipart `file` upload and returns normalized video and optional audio metadata. The route delegates to `VideoProbeService`; it does not run commands itself. Uploaded bytes are written through `LocalStorage` under a generated object key, bounded by `MAX_UPLOAD_SIZE_BYTES`, inspected using a fixed ffprobe argument list, and deleted in a `finally` block after both success and failure.
 
 ffprobe output is internal-only JSON. Invalid JSON, execution failures, and files without a detected video stream receive safe application errors; raw stderr, commands, and filesystem paths are not returned to clients.
+
+## Image compression
+
+Image Compressor uses Pillow through `app/encoders/image/ImageEncoder`; routes and services do not depend on Pillow directly. The first implementation accepts only decoded JPEG, PNG, and WebP files. Names, extensions, and content types are metadata only: Pillow must successfully decode the file before it can become an image job.
+
+`ImageProbeService` returns normalized filename, byte size, actual format, EXIF-oriented dimensions, mode, alpha support, and animation details. Animated images are rejected rather than silently processing their first frame. The service also enforces `IMAGE_MAX_PIXELS`, `IMAGE_MAX_WIDTH`, and `IMAGE_MAX_HEIGHT` while retaining Pillow's decompression-bomb protections.
+
+The image encoder strips incidental metadata, applies EXIF orientation, never upscales, and supports `best_quality`, `balanced`, `smallest_size`, and `target_size` modes. JPEG and lossy WebP use bounded binary quality search for target sizes. If the lowest configured quality still exceeds the target, dimensions are reduced by the configured factor for a bounded number of attempts. PNG uses optimization rather than JPEG-style quality controls. A transparent image cannot be converted to JPEG; it must remain PNG/WebP or receive a safe compatibility error.
+
+Image upload and job flow uses the same private upload records, storage keys, rate limits, Redis job repository, downloads, and temporary-storage policy as video:
+
+1. `POST /api/v1/uploads` initializes an opaque, server-owned upload.
+2. Upload to the returned URL. LocalStorage returns the existing development-only `/api/v1/uploads/{upload_id}/content` endpoint; R2 returns a signed PUT URL.
+3. `POST /api/v1/images/jobs` accepts the opaque `upload_id` plus `compression_mode`, `target_size_bytes`, `output_format` (`original`, `jpeg`, `webp`), and `resize` (`keep_original`, `75_percent`, `50_percent`).
+4. Poll the existing `GET /api/v1/jobs/{job_id}` endpoint and download with the existing job download flow.
+
+`POST /api/v1/images/probe` is available for local multipart inspection. Public errors include `INVALID_IMAGE`, `UNSUPPORTED_ANIMATED_IMAGE`, `IMAGE_DIMENSIONS_EXCEEDED`, `INVALID_TARGET_SIZE`, `TARGET_SIZE_UNREACHABLE`, and `INCOMPATIBLE_IMAGE_OUTPUT`; Pillow exceptions remain internal.
 
 ## Object storage and direct uploads
 
@@ -133,6 +160,8 @@ It uses a uniquely named CPU queue and the Windows `SpawnWorker` compatibility w
 ## Configuration
 
 Copy `.env.example` to `.env` and adjust the environment variables. `Settings` in `app/core/config.py` is the single source of configuration for application names, CORS, upload limits, job TTL, temporary storage, FFmpeg paths, and the future Redis URL. Route modules do not contain environment-specific values.
+
+Image-specific controls are also centralized there: `IMAGE_MAX_PIXELS`, `IMAGE_MAX_WIDTH`, `IMAGE_MAX_HEIGHT`, `IMAGE_MIN_TARGET_SIZE_BYTES`, `IMAGE_MAX_TARGET_SIZE_BYTES`, `IMAGE_TARGET_SEARCH_MAX_ATTEMPTS`, `IMAGE_MIN_QUALITY`, `IMAGE_MAX_QUALITY`, `IMAGE_TARGET_RESIZE_MAX_ATTEMPTS`, `IMAGE_TARGET_RESIZE_FACTOR`, `IMAGE_TARGET_MIN_DIMENSION`, `IMAGE_QUEUE_NAME`, and the independent guest limits `GUEST_IMAGE_MAX_UPLOAD_SIZE_BYTES`, `GUEST_IMAGE_MAX_PIXELS`, `GUEST_IMAGE_MAX_JOBS_PER_HOUR`, and `GUEST_IMAGE_MAX_CONCURRENT_JOBS`.
 
 ## Planned processing architecture
 

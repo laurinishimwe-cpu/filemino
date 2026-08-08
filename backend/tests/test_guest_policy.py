@@ -2,7 +2,10 @@ from datetime import UTC, datetime
 from uuid import uuid4
 import pytest
 from app.core.exceptions import FileTooLargeError, ResolutionNotAllowedError, TooManyActiveJobsError, VideoTooLongError
+from app.models.image import ImageCompressionMode, ImageOutputFormat, ImageResizeOption
 from app.models.video import VideoMetadata, VideoStreamMetadata
+from app.repositories.job_repository import InMemoryJobRepository
+from app.services.job_service import JobService
 from app.services.guest_policy_service import ComplexityClass, GuestPolicy, GuestPolicyService
 from app.services.rate_limit_service import RateLimitService
 
@@ -34,3 +37,36 @@ def test_redis_backed_rate_and_concurrency_limits():
     first=uuid4();limiter.claim_concurrent(subject,first,1,60)
     with pytest.raises(TooManyActiveJobsError):limiter.claim_concurrent(subject,uuid4(),1,60)
     limiter.release_concurrent(subject,first);limiter.claim_concurrent(subject,uuid4(),1,60)
+
+
+def test_image_jobs_use_independent_redis_backed_limits():
+    limiter = RateLimitService(FakeRedis(), "salt")
+    subject = limiter.subject_hash("127.0.0.1")
+    service = JobService(
+        InMemoryJobRepository(),
+        limiter=limiter,
+        max_jobs_per_hour=100,
+        max_concurrent_jobs=100,
+        image_max_jobs_per_hour=1,
+        image_max_concurrent_jobs=1,
+    )
+
+    service.create_image_job(
+        "photo.jpg",
+        ImageCompressionMode.BALANCED,
+        None,
+        ImageOutputFormat.ORIGINAL,
+        ImageResizeOption.KEEP_ORIGINAL,
+        client_hash=subject,
+    )
+
+    from app.core.exceptions import RateLimitedError
+    with pytest.raises(RateLimitedError):
+        service.create_image_job(
+            "another.jpg",
+            ImageCompressionMode.BALANCED,
+            None,
+            ImageOutputFormat.ORIGINAL,
+            ImageResizeOption.KEEP_ORIGINAL,
+            client_hash=subject,
+        )

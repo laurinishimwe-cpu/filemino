@@ -2,9 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AutoScrollRegion, Button, Card, Input, Select } from "@/components/ui";
-import { DropZone, ProcessingState, ResultCard, ToolPage, ToolRail } from "@/components/tools";
+import { DropZone, ProcessingState, RelatedTools, ResultCard, ToolErrorCard, ToolPage } from "@/components/tools";
 import { FileToolIcon } from "@/components/icons/files/FileToolIcon";
-import { relatedFluxFileTools } from "@/lib/tools";
 import {
   FluxFileApiError,
   cancelJob,
@@ -211,11 +210,11 @@ export function VideoCompressor() {
 
   return <ToolPage title="Compress Video" description="Reduce video size while preserving excellent visual quality." badge="Video tool" supportingInfo="MP4, MOV, WEBM and MKV supported">
     {(view === "idle" || view === "error" && !file) && <><DropZone accept={VIDEO_ACCEPT_TYPES} title="Choose video" actionLabel="Choose video" icon={<FileToolIcon name="video" />} description="or drag and drop · MP4, MOV, WEBM, MKV" maxSize={MAX_VIDEO_UPLOAD_SIZE} error={error ?? undefined} onFileSelected={chooseFile} /><TrustLine /></>}
-    {(view === "selected" || view === "error" && file) && file && <div className="tool-selection-flow"><DropZone accept={VIDEO_ACCEPT_TYPES} title="Choose video" icon={<FileToolIcon name="video" />} selectedFile={file} maxSize={MAX_VIDEO_UPLOAD_SIZE} error={error ?? undefined} onFileSelected={chooseFile} onRemove={reset} /><CompressionControls mode={mode} setMode={setMode} target={target} setTarget={setTarget} customTarget={customTarget} setCustomTarget={setCustomTarget} resolution={resolution} setResolution={setResolution} onCompress={startCompression} disabled={false} /><ErrorCard message={error} onRetry={() => { setError(null); setView("selected"); }} onReset={reset} /></div>}
+    {(view === "selected" || view === "error" && file) && file && <div className="tool-selection-flow"><DropZone accept={VIDEO_ACCEPT_TYPES} title="Choose video" icon={<FileToolIcon name="video" />} selectedFile={file} maxSize={MAX_VIDEO_UPLOAD_SIZE} error={error ?? undefined} onFileSelected={chooseFile} onRemove={reset} /><CompressionControls mode={mode} setMode={setMode} target={target} setTarget={setTarget} customTarget={customTarget} setCustomTarget={setCustomTarget} resolution={resolution} setResolution={setResolution} onCompress={startCompression} disabled={false} /><ToolErrorCard title="We couldn’t compress this video" message={error} onRetry={() => { setError(null); setView("selected"); }} onReset={reset} resetLabel="Choose another file" /></div>}
     {active && <><ProcessingState title={processingTitle(view)} progress={progress} indeterminate={view === "preparing"} status={processingMessage(view, job)} showPercentage={view !== "preparing"} /><div className="tool-cta"><Button variant="ghost" onClick={cancel}>Cancel</Button></div></>}
     {view === "completed" && <AutoScrollRegion active><ResultCard title="Your video is ready" description="Compression completed successfully." originalSize={originalSize} resultSize={resultSize} reduction={reduction} originalLabel="Original" resultLabel="Compressed" reductionLabel="Smaller" downloadLabel="Download Video" processAnotherLabel="Choose another file" onDownload={() => void download()} onProcessAnother={reset} /></AutoScrollRegion>}
     {view === "cancelled" && <Card className="tool-controls"><h2 className="processing-title">Compression cancelled</h2><p className="tool-control-description">Your video was not compressed.</p><div className="tool-cta"><Button onClick={reset}>Choose another file</Button></div></Card>}
-    <RelatedTools />
+    <RelatedTools currentTool="Video Compressor" />
   </ToolPage>;
 }
 
@@ -239,10 +238,3 @@ type ControlsProps = { mode: CompressionMode; setMode: (value: CompressionMode) 
 function CompressionControls({ mode, setMode, target, setTarget, customTarget, setCustomTarget, resolution, setResolution, onCompress, disabled }: ControlsProps) {
   return <Card className="tool-controls"><div className="tool-controls-heading"><div><h2 className="tool-control-label">Compression settings</h2><p className="tool-control-description">Choose your preferred output, then compress.</p></div><Button onClick={onCompress} disabled={disabled}>Compress Video</Button></div><fieldset disabled={disabled}><legend className="tool-control-label">Compression mode</legend><p className="tool-control-description">Balanced is recommended for most videos.</p><div className="tool-options" role="radiogroup" aria-label="Compression mode">{compressionModes.map((option) => <button className="tool-option" data-selected={mode === option.value} type="button" role="radio" aria-checked={mode === option.value} key={option.value} onClick={() => setMode(option.value)}>{option.label}</button>)}</div></fieldset><div><label className="tool-control-label" htmlFor="target-size">Target size</label><p className="tool-control-description">Choose a preset or set your own size.</p><Select id="target-size" className="mt-3" value={target} disabled={disabled} onChange={(event) => setTarget(event.target.value as TargetOption)}><option>Auto</option><option>100 MB</option><option>50 MB</option><option>25 MB</option><option>Custom target size</option></Select>{target === "Custom target size" && <Input className="mt-3" value={customTarget} disabled={disabled} onChange={(event) => setCustomTarget(event.target.value)} inputMode="decimal" placeholder="Enter target size in MB" aria-label="Custom target size in megabytes" />}</div><fieldset disabled={disabled}><legend className="tool-control-label">Resolution</legend><div className="tool-options" role="radiogroup" aria-label="Resolution">{resolutions.map((option) => <button className="tool-option" data-selected={resolution === option.value} type="button" role="radio" aria-checked={resolution === option.value} key={option.value} onClick={() => setResolution(option.value)}>{option.label}</button>)}</div></fieldset></Card>;
 }
-
-function ErrorCard({ message, onRetry, onReset }: { message: string | null; onRetry: () => void; onReset: () => void }) {
-  if (!message) return null;
-  return <Card className="tool-error" role="alert"><h2 className="tool-error-title">We couldn’t compress this video</h2><p className="tool-error-message">{message}</p><div className="tool-cta"><Button onClick={onRetry}>Try again</Button><Button variant="secondary" onClick={onReset}>Choose another file</Button></div></Card>;
-}
-
-function RelatedTools() { return <section className="related-tools" aria-labelledby="related-tools-title"><h2 className="related-tools-title" id="related-tools-title">More file tools</h2><p className="related-tools-description">More focused utilities are coming soon.</p><ToolRail tools={relatedFluxFileTools} label="Related FluxFile tools" compact /></section>; }

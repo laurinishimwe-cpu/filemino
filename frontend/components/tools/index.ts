@@ -6,3 +6,5 @@ export * from "./ToolHeader";
 export * from "./ToolPage";
 export * from "./ToolCard";
 export * from "./ToolRail";
+export * from "./RelatedTools";
+export * from "./ToolErrorCard";
