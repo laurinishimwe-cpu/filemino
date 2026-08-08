@@ -16,8 +16,29 @@ class ResolutionOption(StrEnum):
 
 
 @dataclass(frozen=True, slots=True)
+class VideoStreamMetadata:
+    codec: str | None = None
+    width: int | None = None
+    height: int | None = None
+    fps: float | None = None
+    pixel_format: str | None = None
+    bitrate: int | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class AudioStreamMetadata:
+    codec: str | None = None
+    bitrate: int | None = None
+    sample_rate: int | None = None
+    channels: int | None = None
+
+
+@dataclass(frozen=True, slots=True)
 class VideoMetadata:
-    duration_seconds: float
-    width: int
-    height: int
-    mime_type: str | None = None
+    filename: str
+    size_bytes: int
+    duration_seconds: float | None
+    container: str | None
+    bitrate: int | None
+    video: VideoStreamMetadata
+    audio: AudioStreamMetadata | None = None

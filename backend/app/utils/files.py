@@ -10,4 +10,4 @@ def generate_storage_key(extension: str = "") -> str:
 
 def original_filename_metadata(filename: str) -> str:
     """Retain a bounded display name only; it is not a filesystem path."""
-    return Path(filename).name[:255]
+    return Path(filename.replace("\\", "/")).name[:255]
