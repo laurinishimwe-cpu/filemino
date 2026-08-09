@@ -11,7 +11,7 @@ from rq.job import Job as RQJob
 
 from app.api.dependencies import get_job_service, get_storage
 from app.core.config import get_settings
-from app.models.image import ImageCompressionMode, ImageOutputFormat, ImageResizeOption, JobTool
+from app.models.image import ImageCompressionMode, ImageConversionOutputFormat, ImageOutputFormat, ImageResizeOption, JobTool
 from app.models.job import JobStatus
 from app.repositories.job_repository import RedisJobRepository
 from app.repositories.upload_repository import RedisUploadRepository
@@ -122,4 +122,53 @@ def test_local_storage_redis_rq_image_pipeline(
             RQJob.fetch(str(job.id), connection=redis).delete()
         except Exception:
             pass
+        get_settings.cache_clear()
+
+
+@pytest.mark.e2e
+def test_local_storage_redis_rq_image_conversion_pipeline(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Exercise PNG → WebP through the same Windows spawn-worker path."""
+    if os.environ.get("FLUXFILE_RUN_E2E") != "1":
+        pytest.skip("Set FLUXFILE_RUN_E2E=1 to run the Redis/RQ image end-to-end test")
+    redis_url = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
+    redis = Redis.from_url(redis_url, socket_connect_timeout=2, socket_timeout=2)
+    try:
+        redis.ping()
+    except Exception:
+        pytest.skip("Redis is not reachable")
+    queue_name = f"fluxfile-image-conversion-e2e-{uuid4().hex}"
+    monkeypatch.setenv("TEMP_DIRECTORY", str(tmp_path)); monkeypatch.setenv("STORAGE_BACKEND", "local"); monkeypatch.setenv("REDIS_URL", redis_url); monkeypatch.setenv("IMAGE_QUEUE_NAME", queue_name)
+    get_settings.cache_clear(); settings = get_settings(); storage = LocalStorage(settings.temp_directory, settings.api_prefix)
+    repository = RedisJobRepository(redis, settings.job_ttl_seconds); queue = RedisRQQueue(redis, settings.cpu_queue_name, settings.gpu_queue_name, queue_name)
+    jobs = JobService(repository, queue, image_max_jobs_per_hour=100, image_max_concurrent_jobs=10, image_queue_name=queue_name)
+    image_probe = ImageProbeService(storage, 20_000_000, 40_000_000, 8_000, 8_000, tmp_path)
+    video_probe = VideoProbeService(storage, settings.ffprobe_binary, 20_000_000, settings.ffprobe_timeout_seconds, scratch_directory=tmp_path)
+    uploads = UploadService(RedisUploadRepository(redis), storage, video_probe, settings.file_retention_seconds, settings.r2_signed_url_expiry_seconds, 20_000_000, image_probe_service=image_probe, image_queue_name=queue_name, image_max_upload_size_bytes=20_000_000)
+    source = tmp_path / "input.png"; Image.effect_noise((320, 240), 70).convert("RGB").save(source, format="PNG")
+    upload, _ = uploads.initialize("input.png", "image/png"); storage.put(source, upload.storage_key)
+    inspected = uploads.inspect_image_upload(upload.id)
+    assert inspected.format == "PNG" and inspected.size_bytes > 0
+    job = uploads.complete_image_conversion_upload(upload.id, jobs, ImageConversionOutputFormat.WEBP, None, None)
+    rq_queue = Queue(queue_name, connection=redis)
+    try:
+        WindowsSpawnWorker([rq_queue], connection=redis).work(burst=True, logging_level="WARNING")
+        completed = repository.get(job.id)
+        if completed is None or completed.status is not JobStatus.COMPLETED:
+            pytest.fail(_diagnostics(rq_queue, str(job.id), None if completed is None else completed.status.value))
+        assert completed.tool is JobTool.IMAGE_CONVERSION
+        assert completed.output_storage_key and storage.object_info(completed.output_storage_key) is not None
+        assert completed.output_metadata and completed.output_metadata["format"] == "WEBP"
+        app.dependency_overrides[get_job_service] = lambda: jobs; app.dependency_overrides[get_storage] = lambda: storage
+        try:
+            download = TestClient(app).get(f"/api/v1/jobs/{job.id}/download")
+            content = TestClient(app).get(download.json()["download_url"])
+        finally:
+            app.dependency_overrides.clear()
+        assert download.status_code == 200 and content.status_code == 200
+    finally:
+        latest = repository.get(job.id)
+        if latest and latest.output_storage_key: storage.delete(latest.output_storage_key)
+        storage.delete(upload.storage_key); repository.delete(job.id)
+        try: RQJob.fetch(str(job.id), connection=redis).delete()
+        except Exception: pass
         get_settings.cache_clear()

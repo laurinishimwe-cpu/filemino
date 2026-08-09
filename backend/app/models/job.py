@@ -64,6 +64,8 @@ class Job:
     image_conversion_output_format: ImageConversionOutputFormat | None = None
     image_conversion_quality_percent: int | None = None
     image_conversion_background_color: str | None = None
+    image_conversion_ico_sizes: tuple[int, ...] | None = None
+    image_conversion_ico_source_size: int | None = None
     progress: int = 0
     stage: str = "queued"
     message: str = "Queued for processing"

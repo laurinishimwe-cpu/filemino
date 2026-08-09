@@ -13,6 +13,7 @@ export type UploadInitializeResponse = {
   upload_url: string;
   expires_at: string;
 };
+export type ImageMetadataResponse = { filename: string; size_bytes: number; format: string; width: number; height: number; mode: string; has_alpha: boolean; animated: boolean; frame_count: number; available_icon_sizes: [number, number][] };
 
 export type CompressionOptions = {
   compression_mode: CompressionMode;
@@ -36,6 +37,8 @@ export type ImageConversionOptions = {
   output_format: ImageConversionOutputFormat;
   quality_percent: number | null;
   background_color: string | null;
+  ico_sizes: number[] | null;
+  ico_source_size: number | null;
 };
 
 export type VideoStreamMetadata = {
@@ -71,6 +74,9 @@ export type JobMetadata = {
   background_flattened?: boolean | null;
   background_color?: string | null;
   source_icon_size?: [number, number] | null;
+  generated_icon_sizes?: number[] | null;
+  selected_source_icon_size?: [number, number] | null;
+  available_source_icon_sizes?: [number, number][] | null;
 };
 
 export type TargetFailureContext = {
@@ -104,6 +110,8 @@ export type JobResponse = {
   image_conversion_output_format: ImageConversionOutputFormat | null;
   image_conversion_quality_percent: number | null;
   image_conversion_background_color: string | null;
+  image_conversion_ico_sizes: number[] | null;
+  image_conversion_ico_source_size: number | null;
   progress: number;
   stage: string;
   message: string;

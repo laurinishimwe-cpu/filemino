@@ -3,6 +3,7 @@ from pathlib import Path
 from random import Random
 
 import pytest
+from fastapi.testclient import TestClient
 from PIL import Image, features
 
 from app.core.exceptions import (
@@ -19,9 +20,14 @@ from app.models.job import Job
 from app.services.image_compression_service import ImageCompressionService
 from app.services.image_probe_service import ImageProbeService
 from app.services.job_service import JobService
+from app.services.upload_service import UploadService
+from app.services.video_probe_service import VideoProbeService
 from app.storage.local import LocalStorage
 from app.repositories.job_repository import InMemoryJobRepository
+from app.repositories.upload_repository import InMemoryUploadRepository
 from app.workers.image_compression_worker import _process_image_job
+from app.api.dependencies import get_image_upload_service, get_upload_service
+from app.main import app
 
 
 def _probe(tmp_path: Path, *, max_pixels: int = 40_000_000) -> ImageProbeService:
@@ -59,6 +65,36 @@ def _colorful_image(size: tuple[int, int] = (420, 300), *, alpha: bool = False) 
     image = Image.new("RGBA", size) if alpha else Image.new("RGB", size)
     image.putdata(pixels if alpha else [pixel[:3] for pixel in pixels])
     return image
+
+
+@pytest.mark.parametrize("filename", ["actual.png", "misleading-name.jpg"])
+def test_inspect_uploaded_image_uses_persistent_upload_record(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, filename: str) -> None:
+    """The inspect endpoint must resolve the Redis-replaceable upload repository, not process memory."""
+    monkeypatch.setenv("STORAGE_BACKEND", "local")
+    storage = LocalStorage(tmp_path / "storage")
+    image_probe = ImageProbeService(storage, 10 * 1024 * 1024, 40_000_000, 8_000, 8_000, tmp_path)
+    service = UploadService(
+        InMemoryUploadRepository(), storage,
+        VideoProbeService(storage, "ffprobe", 10 * 1024 * 1024, 30, scratch_directory=tmp_path),
+        retention_seconds=3600, signed_url_expiry_seconds=900, max_upload_size_bytes=10 * 1024 * 1024,
+        image_probe_service=image_probe, image_max_upload_size_bytes=10 * 1024 * 1024,
+    )
+    image_bytes = BytesIO(); Image.new("RGBA", (41, 29), (10, 80, 220, 128)).save(image_bytes, format="PNG")
+    upload, _ = service.initialize(filename, "image/jpeg")
+    app.dependency_overrides[get_upload_service] = lambda: service
+    app.dependency_overrides[get_image_upload_service] = lambda: service
+    try:
+        client = TestClient(app)
+        stored = client.put(f"/api/v1/uploads/{upload.id}/content", content=image_bytes.getvalue())
+        inspected = client.post(f"/api/v1/images/uploads/{upload.id}/inspect")
+    finally:
+        app.dependency_overrides.clear()
+    assert stored.status_code == 204
+    assert inspected.status_code == 200
+    payload = inspected.json()
+    assert payload["format"] == "PNG"
+    assert (payload["width"], payload["height"]) == (41, 29)
+    assert payload["has_alpha"] is True
 
 
 @pytest.mark.parametrize(("image_format", "suffix"), [("JPEG", ".jpg"), ("PNG", ".png"), ("WEBP", ".webp")])

@@ -1,4 +1,5 @@
 from typing import Annotated
+from uuid import UUID
 from fastapi import APIRouter, Depends, File, UploadFile, status
 
 from app.api.dependencies import get_image_probe_service, get_image_upload_service, get_job_service
@@ -14,6 +15,11 @@ router = APIRouter()
 @router.post("/probe", response_model=ImageMetadataResponse)
 def probe_image(file: Annotated[UploadFile, File(description="Image file to inspect")], service: Annotated[ImageProbeService, Depends(get_image_probe_service)]) -> ImageMetadataResponse:
     return ImageMetadataResponse.model_validate(service.probe_upload(file.file, file.filename))
+
+
+@router.post("/uploads/{upload_id}/inspect", response_model=ImageMetadataResponse)
+def inspect_image_upload(upload_id: UUID, service: Annotated[UploadService, Depends(get_image_upload_service)]) -> ImageMetadataResponse:
+    return ImageMetadataResponse.model_validate(service.inspect_image_upload(upload_id))
 
 
 @router.post("/jobs", response_model=JobResponse, status_code=status.HTTP_202_ACCEPTED)
@@ -36,4 +42,4 @@ def create_image_job(request: ImageJobCreateRequest, upload_service: Annotated[U
 
 @router.post("/conversion-jobs", response_model=JobResponse, status_code=status.HTTP_202_ACCEPTED)
 def create_image_conversion_job(request: ImageConversionJobCreateRequest, upload_service: Annotated[UploadService, Depends(get_image_upload_service)], job_service: Annotated[JobService, Depends(get_job_service)]) -> JobResponse:
-    return JobResponse.model_validate(upload_service.complete_image_conversion_upload(request.upload_id, job_service, request.output_format, request.quality_percent, request.background_color))
+    return JobResponse.model_validate(upload_service.complete_image_conversion_upload(request.upload_id, job_service, request.output_format, request.quality_percent, request.background_color, request.ico_sizes, request.ico_source_size))

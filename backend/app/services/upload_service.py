@@ -3,8 +3,8 @@ from datetime import timedelta
 from typing import BinaryIO
 from uuid import UUID
 
-from app.core.exceptions import FileTooLargeError, IncompatibleImageOutputError, InvalidTargetSizeError, NotFoundError, UnsupportedImageConversionError, UnsupportedImageFormatError, ValidationError
-from app.models.image import ImageCompressionMode, ImageConversionOutputFormat, ImageOutputFormat, ImageResizeOption, image_format_capability
+from app.core.exceptions import FileTooLargeError, IncompatibleImageOutputError, InvalidImageError, InvalidTargetSizeError, NotFoundError, UnsupportedImageConversionError, UnsupportedImageFormatError, UnsupportedMediaError, UploadNotFoundError, ValidationError
+from app.models.image import ImageCompressionMode, ImageConversionOutputFormat, ImageMetadata, ImageOutputFormat, ImageResizeOption, image_format_capability
 from app.models.job import utc_now
 from app.models.video import CompressionMode, ResolutionOption
 from app.models.upload import Upload
@@ -116,6 +116,8 @@ class UploadService:
         output_format: ImageConversionOutputFormat,
         quality_percent: int | None = None,
         background_color: str | None = None,
+        ico_sizes: list[int] | None = None,
+        ico_source_size: int | None = None,
     ):
         if self._image_probe_service is None:
             raise ValidationError("Image upload handling is unavailable.")
@@ -138,6 +140,8 @@ class UploadService:
             output_format,
             quality_percent,
             background_color,
+            tuple(ico_sizes) if ico_sizes is not None else None,
+            ico_source_size,
             input_metadata=asdict(metadata),
             input_storage_key=upload.storage_key,
             client_hash=upload.client_hash,
@@ -146,11 +150,25 @@ class UploadService:
         self._repository.delete(upload_id)
         return job
 
+    def inspect_image_upload(self, upload_id: UUID) -> ImageMetadata:
+        """Return authoritative decoded metadata without consuming the upload."""
+        if self._image_probe_service is None:
+            raise UnsupportedMediaError()
+        upload = self._get(upload_id)
+        info = self._storage.object_info(upload.storage_key)
+        if info is None:
+            raise ValidationError("Upload has not completed.")
+        if info.size_bytes <= 0:
+            raise InvalidImageError()
+        if info.size_bytes > self._image_max_upload_size_bytes:
+            raise FileTooLargeError()
+        return self._image_probe_service.probe_storage(upload.storage_key, upload.original_filename, info.size_bytes)
+
     def store_local_content(self, upload_id: UUID, stream: BinaryIO) -> int:
         upload = self._get(upload_id)
         return self._storage.put_stream(stream, upload.storage_key, self._max_upload_size_bytes)
 
     def _get(self, upload_id: UUID) -> Upload:
         upload = self._repository.get(upload_id)
-        if upload is None: raise NotFoundError()
+        if upload is None: raise UploadNotFoundError()
         return upload

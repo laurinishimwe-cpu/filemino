@@ -40,6 +40,8 @@ class JobResponse(BaseModel):
     image_conversion_output_format: ImageConversionOutputFormat | None = None
     image_conversion_quality_percent: int | None = Field(default=None, ge=1, le=100)
     image_conversion_background_color: str | None = None
+    image_conversion_ico_sizes: tuple[int, ...] | None = None
+    image_conversion_ico_source_size: int | None = None
     progress: int = Field(ge=0, le=100)
     stage: str
     message: str

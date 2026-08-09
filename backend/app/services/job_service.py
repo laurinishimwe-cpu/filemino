@@ -105,6 +105,8 @@ class JobService:
         output_format: ImageConversionOutputFormat,
         quality_percent: int | None = None,
         background_color: str | None = None,
+        ico_sizes: tuple[int, ...] | None = None,
+        ico_source_size: int | None = None,
         input_metadata: dict | None = None,
         input_storage_key: str | None = None,
         client_hash: str | None = None,
@@ -118,6 +120,8 @@ class JobService:
             image_conversion_output_format=output_format,
             image_conversion_quality_percent=quality_percent,
             image_conversion_background_color=background_color,
+            image_conversion_ico_sizes=ico_sizes,
+            image_conversion_ico_source_size=ico_source_size,
             input_metadata=input_metadata,
         )
         job.client_hash = client_hash

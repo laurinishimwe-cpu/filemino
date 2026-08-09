@@ -1,4 +1,4 @@
-import type { CompressionOptions, DownloadResponse, ImageCompressionOptions, ImageConversionOptions, JobResponse, UploadInitializeResponse } from "./types";
+import type { CompressionOptions, DownloadResponse, ImageCompressionOptions, ImageConversionOptions, ImageMetadataResponse, JobResponse, UploadInitializeResponse } from "./types";
 
 const apiBaseUrl = (process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:8000/api/v1").replace(/\/$/, "");
 
@@ -98,6 +98,10 @@ export async function createImageConversionJob(uploadId: string, options: ImageC
     signal,
   });
   return responseJson<JobResponse>(response);
+}
+
+export async function inspectImageUpload(uploadId: string, signal?: AbortSignal) {
+  return responseJson<ImageMetadataResponse>(await fetch(apiUrl(`/images/uploads/${encodeURIComponent(uploadId)}/inspect`), { method: "POST", signal }));
 }
 
 export async function getJob(jobId: string, signal?: AbortSignal) {

@@ -48,7 +48,7 @@ class ImageConversionService:
             with tempfile.TemporaryDirectory(dir=self._temp_directory) as workspace:
                 source = self._storage.download_to(job.input_storage_key, Path(workspace) / "input")
                 destination = Path(workspace) / f"converted{extension}"
-                converted = self._converter.convert(source, destination, output_format, job.image_conversion_quality_percent, job.image_conversion_background_color)
+                converted = self._converter.convert(source, destination, output_format, job.image_conversion_quality_percent, job.image_conversion_background_color, job.image_conversion_ico_sizes, job.image_conversion_ico_source_size)
                 self._storage.put(destination, output_key)
             with tempfile.TemporaryDirectory(dir=self._temp_directory) as workspace:
                 result = self._storage.download_to(output_key, Path(workspace) / f"result{extension}")
@@ -57,7 +57,7 @@ class ImageConversionService:
             self._storage.delete(output_key)
             raise
         metadata = asdict(output_metadata)
-        metadata.update(source_format=input_metadata.format, output_format=output_metadata.format, original_width=input_metadata.width, original_height=input_metadata.height, original_size_bytes=input_metadata.size_bytes, output_size_bytes=output_metadata.size_bytes, alpha_preserved=converted.alpha_preserved, background_flattened=converted.background_flattened, background_color=job.image_conversion_background_color if converted.background_flattened else None, quality_percent=job.image_conversion_quality_percent, source_icon_size=converted.source_icon_size)
+        metadata.update(source_format=input_metadata.format, output_format=output_metadata.format, original_width=input_metadata.width, original_height=input_metadata.height, original_size_bytes=input_metadata.size_bytes, output_size_bytes=output_metadata.size_bytes, alpha_preserved=converted.alpha_preserved, background_flattened=converted.background_flattened, background_color=job.image_conversion_background_color if converted.background_flattened else None, quality_percent=job.image_conversion_quality_percent, source_icon_size=converted.source_icon_size, selected_source_icon_size=converted.source_icon_size, available_source_icon_sizes=input_metadata.available_icon_sizes, generated_icon_sizes=converted.generated_icon_sizes)
         return ImageConversionOutcome(output_key, metadata)
 
     def discard_output(self, output_storage_key: str) -> None:

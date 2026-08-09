@@ -79,6 +79,7 @@ class ImageProbeService:
                         raise UnsupportedAnimatedImageError()
                     if image_format not in SUPPORTED_IMAGE_FORMATS:
                         raise UnsupportedMediaError()
+                    icon_sizes = tuple(sorted(image.ico.sizes())) if image_format == "ICO" and hasattr(image, "ico") else ()
                     normalized = ImageOps.exif_transpose(image)
                     width, height = normalized.size
                     self._validate_dimensions(width, height)
@@ -92,6 +93,7 @@ class ImageProbeService:
                         has_alpha=_has_alpha(normalized),
                         animated=False,
                         frame_count=1,
+                        available_icon_sizes=icon_sizes,
                     )
         except (UnsupportedMediaError, UnsupportedAnimatedImageError, ImageDimensionsExceededError):
             raise

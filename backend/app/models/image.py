@@ -76,6 +76,7 @@ class ImageMetadata:
     has_alpha: bool
     animated: bool
     frame_count: int
+    available_icon_sizes: tuple[tuple[int, int], ...] = ()
 
 
 def resolve_image_output_format(

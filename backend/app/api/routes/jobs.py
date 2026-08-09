@@ -52,18 +52,23 @@ def download_local_content(job_id: UUID, service: Annotated[JobService, Depends(
     if job.status is not JobStatus.COMPLETED or not job.output_storage_key:
         raise ValidationError("The output is not ready for download.")
     workspace = tempfile.mkdtemp(dir=settings.temp_directory)
-    suffix, filename, media_type = _download_details(job.tool, job.output_metadata)
+    suffix, filename, media_type = _download_details(job)
     output_path = storage.download_to(job.output_storage_key, Path(workspace) / f"download{suffix}")
     return FileResponse(output_path, filename=filename, media_type=media_type, background=BackgroundTask(shutil.rmtree, workspace, True))
 
 
-def _download_details(tool: JobTool, metadata: dict | None) -> tuple[str, str, str]:
-    if tool is not JobTool.IMAGE:
+def _download_details(job) -> tuple[str, str, str]:
+    tool = job.tool
+    metadata = job.output_metadata
+    if tool is JobTool.VIDEO:
         return ".mp4", "compressed-video.mp4", "video/mp4"
     image_format = (metadata or {}).get("format")
+    default_prefix = "converted-image" if tool is JobTool.IMAGE_CONVERSION else "compressed-image"
     details = {
-        "JPEG": (".jpg", "compressed-image.jpg", "image/jpeg"),
-        "PNG": (".png", "compressed-image.png", "image/png"),
-        "WEBP": (".webp", "compressed-image.webp", "image/webp"),
+        "JPEG": (".jpg", ".jpg", "image/jpeg"),
+        "PNG": (".png", ".png", "image/png"),
+        "WEBP": (".webp", ".webp", "image/webp"),
+        "ICO": (".ico", ".ico", "image/x-icon"),
     }
-    return details.get(image_format, (".image", "compressed-image", "application/octet-stream"))
+    suffix, extension, media_type = details.get(image_format, (".image", ".image", "application/octet-stream"))
+    return suffix, f"{Path(job.original_filename).stem or default_prefix}{extension}", media_type

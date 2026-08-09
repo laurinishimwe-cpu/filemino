@@ -1006,6 +1006,8 @@
   .tool-option-row label, .tool-field-label { display: flex; align-items: center; gap: var(--space-2); color: var(--color-text-primary); font-size: var(--text-label); font-weight: 600; }
   .tool-option-row input[type="color"] { width: var(--space-8); height: var(--space-8); padding: 0; border: 0; background: transparent; }
   .tool-field-label input[type="range"] { accent-color: var(--color-primary); }
+  .icon-size-options { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-2); }
+  .icon-size-options label { display: flex; align-items: center; gap: var(--space-2); min-height: var(--size-control-md); padding: var(--space-2); border: 1px solid var(--color-border); border-radius: var(--radius-control); color: var(--color-text-primary); font-size: var(--text-caption); }
 }
 
 /* ── Responsive ── */
@@ -1014,6 +1016,7 @@
   .related-tools-grid { grid-template-columns: 1fr; }
   .tool-card { min-width: 10rem; }
   .image-format-options { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .icon-size-options { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (max-width: 40rem) {

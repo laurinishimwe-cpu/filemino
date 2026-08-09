@@ -14,6 +14,10 @@ class NotFoundError(ApplicationError):
     public_message = "The requested resource was not found."
 
 
+class UploadNotFoundError(NotFoundError):
+    code = "UPLOAD_NOT_FOUND"
+
+
 class ValidationError(ApplicationError):
     status_code = 422
     public_message = "The request is invalid."
@@ -103,3 +107,9 @@ class UnsupportedImageConversionError(ApplicationError):
     status_code = 422
     public_message = "This conversion is not supported."
     code = "UNSUPPORTED_CONVERSION"
+
+
+class InvalidIconSizeError(ApplicationError):
+    status_code = 422
+    public_message = "The selected icon sizes are not valid for this image."
+    code = "INVALID_ICON_SIZE"

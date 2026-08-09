@@ -46,3 +46,22 @@ def test_png_to_ico_writes_multiple_icon_sizes(tmp_path: Path) -> None:
     with Image.open(destination) as image:
         assert image.format == "ICO"
         assert max(image.ico.sizes()) == (128, 128)
+
+
+def test_png_to_ico_honors_selected_sizes_without_upscaling(tmp_path: Path) -> None:
+    source = tmp_path / "source.png"; destination = tmp_path / "result.ico"
+    Image.new("RGBA", (64, 64), (30, 100, 220, 180)).save(source)
+    result = PillowImageConverter().convert(source, destination, ImageConversionOutputFormat.ICO, None, None, (16, 32, 64, 128))
+    assert result.generated_icon_sizes == (16, 32, 64)
+    with Image.open(destination) as image:
+        assert image.ico.sizes() == {(16, 16), (32, 32), (64, 64)}
+
+
+def test_ico_source_can_select_an_embedded_size(tmp_path: Path) -> None:
+    source = tmp_path / "source.png"; icon = tmp_path / "source.ico"; destination = tmp_path / "result.png"
+    Image.new("RGBA", (128, 128), (30, 100, 220, 180)).save(source)
+    PillowImageConverter().convert(source, icon, ImageConversionOutputFormat.ICO, None, None, (16, 64, 128))
+    result = PillowImageConverter().convert(icon, destination, ImageConversionOutputFormat.PNG, None, None, None, 64)
+    assert result.source_icon_size == (64, 64)
+    with Image.open(destination) as image:
+        assert image.size == (64, 64)

@@ -26,6 +26,8 @@ class ImageConversionJobCreateRequest(BaseModel):
     output_format: ImageConversionOutputFormat
     quality_percent: int | None = Field(default=None, ge=1, le=100)
     background_color: str | None = Field(default=None, pattern=r"^#[0-9A-Fa-f]{6}$")
+    ico_sizes: list[int] | None = Field(default=None, min_length=1)
+    ico_source_size: int | None = Field(default=None, ge=1)
 
 
 class ImageMetadataResponse(BaseModel):
@@ -40,3 +42,4 @@ class ImageMetadataResponse(BaseModel):
     has_alpha: bool
     animated: bool
     frame_count: int = Field(ge=1)
+    available_icon_sizes: tuple[tuple[int, int], ...] = ()

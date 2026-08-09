@@ -15,8 +15,13 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   metadataBase: getSiteUrl(),
-  title: "FluxFile",
-  description: "Fast, simple file tools.",
+  title: { default: "FluxFile – Fast Online File Tools", template: "%s | FluxFile" },
+  description: "Fast online tools for everyday files.",
+  applicationName: "FluxFile",
+  robots: { index: true, follow: true },
+  openGraph: { type: "website", siteName: "FluxFile", title: "FluxFile", description: "Fast online tools for everyday files." },
+  twitter: { card: "summary", title: "FluxFile", description: "Fast online tools for everyday files." },
+  icons: { icon: "/FluxFile-logo.svg" },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

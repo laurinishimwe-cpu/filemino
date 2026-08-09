@@ -5,7 +5,7 @@ import Image from "next/image";
 import { useState } from "react";
 import { Container } from "@/components/ui";
 
-const links = [{ href: "/#tools", label: "Tools" }, { href: "/#about", label: "About" }];
+const links = [{ href: "/#tools", label: "Tools" }, { href: "/about", label: "About" }];
 
 export function Header() {
   const [open, setOpen] = useState(false);
