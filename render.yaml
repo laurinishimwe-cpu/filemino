@@ -1,0 +1,42 @@
+services:
+  - type: keyvalue
+    name: filemino-redis
+    plan: starter
+    maxmemoryPolicy: noeviction
+    ipAllowList: []
+
+  - type: web
+    name: filemino-api
+    runtime: docker
+    plan: starter
+    region: frankfurt
+    dockerContext: ./backend
+    dockerfilePath: ./backend/Dockerfile
+    healthCheckPath: /api/v1/health
+    autoDeployTrigger: commit
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: DEBUG
+        value: "false"
+      - key: CORS_ORIGINS
+        value: '["https://filemino-web.onrender.com"]'
+      - key: STORAGE_BACKEND
+        value: r2
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: filemino-redis
+          property: connectionString
+      - key: RATE_LIMIT_HASH_SALT
+        generateValue: true
+      - key: R2_ACCOUNT_ID
+        sync: false
+      - key: R2_ACCESS_KEY_ID
+        sync: false
+      - key: R2_SECRET_ACCESS_KEY
+        sync: false
+      - key: R2_BUCKET_NAME
+        sync: false
+      - key: R2_ENDPOINT
+        sync: false
