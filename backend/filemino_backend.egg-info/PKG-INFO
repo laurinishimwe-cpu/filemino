@@ -1,7 +1,7 @@
 Metadata-Version: 2.4
-Name: fluxfile-backend
+Name: filemino-backend
 Version: 0.1.0
-Summary: Backend API for FluxFile file-processing tools.
+Summary: Backend API for FileMino file-processing tools.
 Requires-Python: >=3.11
 Requires-Dist: fastapi<1.0,>=0.115
 Requires-Dist: boto3<2.0,>=1.35

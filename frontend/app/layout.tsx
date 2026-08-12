@@ -15,13 +15,13 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   metadataBase: getSiteUrl(),
-  title: { default: "FluxFile – Fast Online File Tools", template: "%s | FluxFile" },
+  title: { default: "FileMino – Fast Online File Tools", template: "%s | FileMino" },
   description: "Fast online tools for everyday files.",
-  applicationName: "FluxFile",
+  applicationName: "FileMino",
   robots: { index: true, follow: true },
-  openGraph: { type: "website", siteName: "FluxFile", title: "FluxFile", description: "Fast online tools for everyday files." },
-  twitter: { card: "summary", title: "FluxFile", description: "Fast online tools for everyday files." },
-  icons: { icon: "/FluxFile-logo.svg" },
+  openGraph: { type: "website", siteName: "FileMino", title: "FileMino", description: "Fast online tools for everyday files." },
+  twitter: { card: "summary", title: "FileMino", description: "Fast online tools for everyday files." },
+  icons: { icon: "/FileMino-logo.svg" },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

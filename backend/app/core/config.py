@@ -8,7 +8,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     """Environment-driven application configuration."""
 
-    app_name: str = "FluxFile API"
+    app_name: str = "FileMino API"
     environment: str = "development"
     debug: bool = False
     api_prefix: str = "/api/v1"

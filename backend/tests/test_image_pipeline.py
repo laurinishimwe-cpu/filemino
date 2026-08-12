@@ -6,6 +6,7 @@ import pytest
 from fastapi.testclient import TestClient
 from PIL import Image, features
 
+from app.api.dependencies import get_image_upload_service, get_upload_service
 from app.core.exceptions import (
     ImageDimensionsExceededError,
     IncompatibleImageOutputError,
@@ -13,25 +14,37 @@ from app.core.exceptions import (
     InvalidTargetSizeError,
     UnsupportedAnimatedImageError,
 )
-from app.encoders.image.base import ImageEncoderConfig, ImageEncodingRequest, ImageTargetSizeUnreachable, TargetSizeFailureContext
+from app.encoders.image.base import (
+    ImageEncoderConfig,
+    ImageEncodingRequest,
+    ImageTargetSizeUnreachable,
+    TargetSizeFailureContext,
+)
 from app.encoders.image.pillow_encoder import PillowImageEncoder
-from app.models.image import ImageCompressionMode, ImageMetadata, ImageOutputFormat, ImageResizeOption, JobTool
+from app.main import app
+from app.models.image import (
+    ImageCompressionMode,
+    ImageMetadata,
+    ImageOutputFormat,
+    ImageResizeOption,
+    JobTool,
+)
 from app.models.job import Job
+from app.repositories.job_repository import InMemoryJobRepository
+from app.repositories.upload_repository import InMemoryUploadRepository
 from app.services.image_compression_service import ImageCompressionService
 from app.services.image_probe_service import ImageProbeService
 from app.services.job_service import JobService
 from app.services.upload_service import UploadService
 from app.services.video_probe_service import VideoProbeService
 from app.storage.local import LocalStorage
-from app.repositories.job_repository import InMemoryJobRepository
-from app.repositories.upload_repository import InMemoryUploadRepository
 from app.workers.image_compression_worker import _process_image_job
-from app.api.dependencies import get_image_upload_service, get_upload_service
-from app.main import app
 
 
 def _probe(tmp_path: Path, *, max_pixels: int = 40_000_000) -> ImageProbeService:
-    return ImageProbeService(LocalStorage(tmp_path / "storage"), 10 * 1024 * 1024, max_pixels, 8_000, 8_000, tmp_path)
+    return ImageProbeService(
+        LocalStorage(tmp_path / "storage"), 10 * 1024 * 1024, max_pixels, 8_000, 8_000, tmp_path
+    )
 
 
 def _config(**overrides: int | float) -> ImageEncoderConfig:
@@ -68,18 +81,25 @@ def _colorful_image(size: tuple[int, int] = (420, 300), *, alpha: bool = False) 
 
 
 @pytest.mark.parametrize("filename", ["actual.png", "misleading-name.jpg"])
-def test_inspect_uploaded_image_uses_persistent_upload_record(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, filename: str) -> None:
-    """The inspect endpoint must resolve the Redis-replaceable upload repository, not process memory."""
+def test_inspect_uploaded_image_uses_persistent_upload_record(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, filename: str
+) -> None:
+    """The inspect endpoint must resolve the persistent upload repository."""
     monkeypatch.setenv("STORAGE_BACKEND", "local")
     storage = LocalStorage(tmp_path / "storage")
     image_probe = ImageProbeService(storage, 10 * 1024 * 1024, 40_000_000, 8_000, 8_000, tmp_path)
     service = UploadService(
-        InMemoryUploadRepository(), storage,
+        InMemoryUploadRepository(),
+        storage,
         VideoProbeService(storage, "ffprobe", 10 * 1024 * 1024, 30, scratch_directory=tmp_path),
-        retention_seconds=3600, signed_url_expiry_seconds=900, max_upload_size_bytes=10 * 1024 * 1024,
-        image_probe_service=image_probe, image_max_upload_size_bytes=10 * 1024 * 1024,
+        retention_seconds=3600,
+        signed_url_expiry_seconds=900,
+        max_upload_size_bytes=10 * 1024 * 1024,
+        image_probe_service=image_probe,
+        image_max_upload_size_bytes=10 * 1024 * 1024,
     )
-    image_bytes = BytesIO(); Image.new("RGBA", (41, 29), (10, 80, 220, 128)).save(image_bytes, format="PNG")
+    image_bytes = BytesIO()
+    Image.new("RGBA", (41, 29), (10, 80, 220, 128)).save(image_bytes, format="PNG")
     upload, _ = service.initialize(filename, "image/jpeg")
     app.dependency_overrides[get_upload_service] = lambda: service
     app.dependency_overrides[get_image_upload_service] = lambda: service
@@ -97,7 +117,10 @@ def test_inspect_uploaded_image_uses_persistent_upload_record(tmp_path: Path, mo
     assert payload["has_alpha"] is True
 
 
-@pytest.mark.parametrize(("image_format", "suffix"), [("JPEG", ".jpg"), ("PNG", ".png"), ("WEBP", ".webp")])
+@pytest.mark.parametrize(
+    ("image_format", "suffix"),
+    [("JPEG", ".jpg"), ("PNG", ".png"), ("WEBP", ".webp"), ("AVIF", ".avif")],
+)
 def test_probe_supported_images(tmp_path: Path, image_format: str, suffix: str) -> None:
     if image_format == "WEBP" and not features.check("webp"):
         pytest.skip("Pillow WebP support is unavailable")
@@ -110,59 +133,155 @@ def test_probe_supported_images(tmp_path: Path, image_format: str, suffix: str) 
 
 
 def test_probe_rejects_malformed_and_animated_images(tmp_path: Path) -> None:
-    malformed = tmp_path / "bad.png"; malformed.write_bytes(b"not an image")
-    with pytest.raises(InvalidImageError): _probe(tmp_path).probe(malformed)
+    malformed = tmp_path / "bad.png"
+    malformed.write_bytes(b"not an image")
+    with pytest.raises(InvalidImageError):
+        _probe(tmp_path).probe(malformed)
     animated = tmp_path / "animated.gif"
-    Image.new("RGB", (8, 8), "red").save(animated, save_all=True, append_images=[Image.new("RGB", (8, 8), "blue")], duration=100)
-    with pytest.raises(UnsupportedAnimatedImageError): _probe(tmp_path).probe(animated)
+    Image.new("RGB", (8, 8), "red").save(
+        animated, save_all=True, append_images=[Image.new("RGB", (8, 8), "blue")], duration=100
+    )
+    with pytest.raises(UnsupportedAnimatedImageError):
+        _probe(tmp_path).probe(animated)
 
 
 def test_probe_applies_exif_orientation_and_dimension_limit(tmp_path: Path) -> None:
     source = tmp_path / "rotated.jpg"
-    exif = Image.Exif(); exif[274] = 6
+    exif = Image.Exif()
+    exif[274] = 6
     Image.new("RGB", (40, 80), "red").save(source, exif=exif)
     metadata = _probe(tmp_path).probe(source)
     assert (metadata.width, metadata.height) == (80, 40)
-    with pytest.raises(ImageDimensionsExceededError): _probe(tmp_path, max_pixels=500).probe(source)
+    with pytest.raises(ImageDimensionsExceededError):
+        _probe(tmp_path, max_pixels=500).probe(source)
 
 
 def test_encoder_preserves_alpha_for_webp_and_rejects_jpeg_alpha(tmp_path: Path) -> None:
     if not features.check("webp"):
         pytest.skip("Pillow WebP support is unavailable")
-    source = tmp_path / "alpha.png"; _save(source, Image.new("RGBA", (160, 100), (20, 40, 200, 120)), "PNG")
+    source = tmp_path / "alpha.png"
+    _save(source, Image.new("RGBA", (160, 100), (20, 40, 200, 120)), "PNG")
     encoder = PillowImageEncoder()
     with pytest.raises(IncompatibleImageOutputError):
-        encoder.compress(ImageEncodingRequest(source, tmp_path / "bad.jpg", ImageCompressionMode.BALANCED, None, ImageOutputFormat.JPEG, ImageResizeOption.KEEP_ORIGINAL, _config()))
-    result = encoder.compress(ImageEncodingRequest(source, tmp_path / "output.webp", ImageCompressionMode.BALANCED, None, ImageOutputFormat.WEBP, ImageResizeOption.KEEP_ORIGINAL, _config()))
+        encoder.compress(
+            ImageEncodingRequest(
+                source,
+                tmp_path / "bad.jpg",
+                ImageCompressionMode.BALANCED,
+                None,
+                ImageOutputFormat.JPEG,
+                ImageResizeOption.KEEP_ORIGINAL,
+                _config(),
+            )
+        )
+    result = encoder.compress(
+        ImageEncodingRequest(
+            source,
+            tmp_path / "output.webp",
+            ImageCompressionMode.BALANCED,
+            None,
+            ImageOutputFormat.WEBP,
+            ImageResizeOption.KEEP_ORIGINAL,
+            _config(),
+        )
+    )
     assert result.has_alpha and (tmp_path / "output.webp").stat().st_size > 0
 
 
-@pytest.mark.parametrize("mode", [ImageCompressionMode.BEST_QUALITY, ImageCompressionMode.BALANCED, ImageCompressionMode.SMALLEST_SIZE])
+def test_avif_input_defaults_to_webp_output(tmp_path: Path) -> None:
+    source = tmp_path / "source.avif"
+    _save(source, Image.new("RGB", (160, 100), "navy"), "AVIF")
+    destination = tmp_path / "output.webp"
+    result = PillowImageEncoder().compress(
+        ImageEncodingRequest(
+            source,
+            destination,
+            ImageCompressionMode.BALANCED,
+            None,
+            ImageOutputFormat.ORIGINAL,
+            ImageResizeOption.KEEP_ORIGINAL,
+            _config(),
+        )
+    )
+    assert result.format == "WEBP"
+    assert destination.read_bytes()[:4] == b"RIFF"
+
+
+@pytest.mark.parametrize(
+    "mode",
+    [
+        ImageCompressionMode.BEST_QUALITY,
+        ImageCompressionMode.BALANCED,
+        ImageCompressionMode.SMALLEST_SIZE,
+    ],
+)
 def test_jpeg_modes_and_resize_do_not_upscale(tmp_path: Path, mode: ImageCompressionMode) -> None:
-    source = tmp_path / "source.jpg"; _save(source, Image.effect_noise((640, 480), 80).convert("RGB"), "JPEG")
+    source = tmp_path / "source.jpg"
+    _save(source, Image.effect_noise((640, 480), 80).convert("RGB"), "JPEG")
     output = tmp_path / f"{mode}.jpg"
-    result = PillowImageEncoder().compress(ImageEncodingRequest(source, output, mode, None, ImageOutputFormat.JPEG, ImageResizeOption.PERCENT_50, _config()))
+    result = PillowImageEncoder().compress(
+        ImageEncodingRequest(
+            source,
+            output,
+            mode,
+            None,
+            ImageOutputFormat.JPEG,
+            ImageResizeOption.PERCENT_50,
+            _config(),
+        )
+    )
     assert output.is_file() and output.stat().st_size > 0
     assert (result.width, result.height) == (320, 240)
 
 
 @pytest.mark.parametrize("target", [50 * 1024, 100 * 1024])
-def test_target_size_search_returns_highest_practical_candidate(tmp_path: Path, target: int) -> None:
-    source = tmp_path / "source.jpg"; _save(source, Image.effect_noise((640, 480), 90).convert("RGB"), "JPEG")
+def test_target_size_search_returns_highest_practical_candidate(
+    tmp_path: Path, target: int
+) -> None:
+    source = tmp_path / "source.jpg"
+    _save(source, Image.effect_noise((640, 480), 90).convert("RGB"), "JPEG")
     output = tmp_path / f"target-{target}.jpg"
-    result = PillowImageEncoder().compress(ImageEncodingRequest(source, output, ImageCompressionMode.TARGET_SIZE, target, ImageOutputFormat.JPEG, ImageResizeOption.KEEP_ORIGINAL, _config()))
+    result = PillowImageEncoder().compress(
+        ImageEncodingRequest(
+            source,
+            output,
+            ImageCompressionMode.TARGET_SIZE,
+            target,
+            ImageOutputFormat.JPEG,
+            ImageResizeOption.KEEP_ORIGINAL,
+            _config(),
+        )
+    )
     assert output.stat().st_size <= target
     assert result.target_achieved
 
 
 def test_target_size_unreachable_is_bounded(tmp_path: Path) -> None:
-    source = tmp_path / "source.jpg"; _save(source, Image.effect_noise((600, 600), 100).convert("RGB"), "JPEG")
+    source = tmp_path / "source.jpg"
+    _save(source, Image.effect_noise((600, 600), 100).convert("RGB"), "JPEG")
     with pytest.raises(ImageTargetSizeUnreachable):
-        PillowImageEncoder().compress(ImageEncodingRequest(source, tmp_path / "unreachable.jpg", ImageCompressionMode.TARGET_SIZE, 1_024, ImageOutputFormat.JPEG, ImageResizeOption.KEEP_ORIGINAL, _config(min_quality=90, max_quality=90, target_resize_max_attempts=0, target_min_dimension=600)))
+        PillowImageEncoder().compress(
+            ImageEncodingRequest(
+                source,
+                tmp_path / "unreachable.jpg",
+                ImageCompressionMode.TARGET_SIZE,
+                1_024,
+                ImageOutputFormat.JPEG,
+                ImageResizeOption.KEEP_ORIGINAL,
+                _config(
+                    min_quality=90,
+                    max_quality=90,
+                    target_resize_max_attempts=0,
+                    target_min_dimension=600,
+                ),
+            )
+        )
 
 
 def test_probe_upload_cleans_temporary_object(tmp_path: Path) -> None:
-    buffer = BytesIO(); Image.new("RGB", (20, 20), "green").save(buffer, format="PNG"); buffer.seek(0)
+    buffer = BytesIO()
+    Image.new("RGB", (20, 20), "green").save(buffer, format="PNG")
+    buffer.seek(0)
     service = _probe(tmp_path)
     metadata = service.probe_upload(buffer, "safe.png")
     assert metadata.format == "PNG"
@@ -171,11 +290,20 @@ def test_probe_upload_cleans_temporary_object(tmp_path: Path) -> None:
 
 def test_image_compression_service_persists_actual_output_metadata(tmp_path: Path) -> None:
     storage = LocalStorage(tmp_path / "storage")
-    source = tmp_path / "source.jpg"; _save(source, Image.effect_noise((640, 480), 85).convert("RGB"), "JPEG")
+    source = tmp_path / "source.jpg"
+    _save(source, Image.effect_noise((640, 480), 85).convert("RGB"), "JPEG")
     storage.put(source, "uploads/source.image")
     probe = _probe(tmp_path)
     service = ImageCompressionService(PillowImageEncoder(), storage, probe, tmp_path, _config())
-    job = Job(tool=JobTool.IMAGE, original_filename="source.jpg", input_storage_key="uploads/source.image", compression_mode=ImageCompressionMode.TARGET_SIZE, target_size_bytes=100 * 1024, image_output_format=ImageOutputFormat.JPEG, image_resize=ImageResizeOption.KEEP_ORIGINAL)
+    job = Job(
+        tool=JobTool.IMAGE,
+        original_filename="source.jpg",
+        input_storage_key="uploads/source.image",
+        compression_mode=ImageCompressionMode.TARGET_SIZE,
+        target_size_bytes=100 * 1024,
+        image_output_format=ImageOutputFormat.JPEG,
+        image_resize=ImageResizeOption.KEEP_ORIGINAL,
+    )
     input_metadata = service.probe_input(job)
     outcome = service.compress(job, input_metadata)
     assert storage.object_info(outcome.output_storage_key) is not None
@@ -184,7 +312,9 @@ def test_image_compression_service_persists_actual_output_metadata(tmp_path: Pat
     assert outcome.output_metadata["size_bytes"] <= 100 * 1024
 
 
-def test_image_compression_service_removes_output_when_post_encode_validation_fails(tmp_path: Path) -> None:
+def test_image_compression_service_removes_output_when_post_encode_validation_fails(
+    tmp_path: Path,
+) -> None:
     class FailingOutputProbe:
         def probe(self, source: Path, filename: str | None = None):  # type: ignore[no-untyped-def]
             raise InvalidImageError()
@@ -194,7 +324,9 @@ def test_image_compression_service_removes_output_when_post_encode_validation_fa
     _save(source, Image.effect_noise((640, 480), 85).convert("RGB"), "JPEG")
     storage.put(source, "uploads/source.image")
     input_metadata = _probe(tmp_path).probe(source)
-    service = ImageCompressionService(PillowImageEncoder(), storage, FailingOutputProbe(), tmp_path, _config())  # type: ignore[arg-type]
+    service = ImageCompressionService(
+        PillowImageEncoder(), storage, FailingOutputProbe(), tmp_path, _config()
+    )  # type: ignore[arg-type]
     job = Job(
         tool=JobTool.IMAGE,
         original_filename="source.jpg",
@@ -215,12 +347,33 @@ def test_png_modes_use_meaningfully_different_palette_strategies(tmp_path: Path)
     _save(source, _colorful_image(), "PNG")
     encoder = PillowImageEncoder()
     outputs: dict[ImageCompressionMode, Path] = {}
-    for mode in (ImageCompressionMode.BEST_QUALITY, ImageCompressionMode.BALANCED, ImageCompressionMode.SMALLEST_SIZE):
+    for mode in (
+        ImageCompressionMode.BEST_QUALITY,
+        ImageCompressionMode.BALANCED,
+        ImageCompressionMode.SMALLEST_SIZE,
+    ):
         output = tmp_path / f"{mode.value}.png"
-        encoder.compress(ImageEncodingRequest(source, output, mode, None, ImageOutputFormat.ORIGINAL, ImageResizeOption.KEEP_ORIGINAL, _config()))
+        encoder.compress(
+            ImageEncodingRequest(
+                source,
+                output,
+                mode,
+                None,
+                ImageOutputFormat.ORIGINAL,
+                ImageResizeOption.KEEP_ORIGINAL,
+                _config(),
+            )
+        )
         outputs[mode] = output
 
-    best, balanced, smallest = (outputs[mode] for mode in (ImageCompressionMode.BEST_QUALITY, ImageCompressionMode.BALANCED, ImageCompressionMode.SMALLEST_SIZE))
+    best, balanced, smallest = (
+        outputs[mode]
+        for mode in (
+            ImageCompressionMode.BEST_QUALITY,
+            ImageCompressionMode.BALANCED,
+            ImageCompressionMode.SMALLEST_SIZE,
+        )
+    )
     assert best.stat().st_size > balanced.stat().st_size > smallest.stat().st_size
     with Image.open(best) as image:
         assert image.mode == "RGB"
@@ -238,15 +391,40 @@ def test_png_quantization_preserves_transparency_and_auto_uses_webp(tmp_path: Pa
     png_output = tmp_path / "balanced.png"
     webp_output = tmp_path / "auto.webp"
     encoder = PillowImageEncoder()
-    encoder.compress(ImageEncodingRequest(source, png_output, ImageCompressionMode.BALANCED, None, ImageOutputFormat.ORIGINAL, ImageResizeOption.KEEP_ORIGINAL, _config()))
-    auto = encoder.compress(ImageEncodingRequest(source, webp_output, ImageCompressionMode.BALANCED, None, ImageOutputFormat.AUTO, ImageResizeOption.KEEP_ORIGINAL, _config()))
+    encoder.compress(
+        ImageEncodingRequest(
+            source,
+            png_output,
+            ImageCompressionMode.BALANCED,
+            None,
+            ImageOutputFormat.ORIGINAL,
+            ImageResizeOption.KEEP_ORIGINAL,
+            _config(),
+        )
+    )
+    auto = encoder.compress(
+        ImageEncodingRequest(
+            source,
+            webp_output,
+            ImageCompressionMode.BALANCED,
+            None,
+            ImageOutputFormat.AUTO,
+            ImageResizeOption.KEEP_ORIGINAL,
+            _config(),
+        )
+    )
     assert _probe(tmp_path).probe(png_output).has_alpha
     assert auto.format == "WEBP"
     assert _probe(tmp_path).probe(webp_output).has_alpha
 
 
-@pytest.mark.parametrize(("image_format", "output_format"), [("JPEG", ImageOutputFormat.JPEG), ("WEBP", ImageOutputFormat.WEBP)])
-def test_quality_override_changes_lossy_output_size(tmp_path: Path, image_format: str, output_format: ImageOutputFormat) -> None:
+@pytest.mark.parametrize(
+    ("image_format", "output_format"),
+    [("JPEG", ImageOutputFormat.JPEG), ("WEBP", ImageOutputFormat.WEBP)],
+)
+def test_quality_override_changes_lossy_output_size(
+    tmp_path: Path, image_format: str, output_format: ImageOutputFormat
+) -> None:
     if image_format == "WEBP" and not features.check("webp"):
         pytest.skip("Pillow WebP support is unavailable")
     source = tmp_path / f"source.{image_format.lower()}"
@@ -254,31 +432,110 @@ def test_quality_override_changes_lossy_output_size(tmp_path: Path, image_format
     encoder = PillowImageEncoder()
     high = tmp_path / "high.out"
     low = tmp_path / "low.out"
-    encoder.compress(ImageEncodingRequest(source, high, ImageCompressionMode.BALANCED, None, output_format, ImageResizeOption.KEEP_ORIGINAL, _config(), quality_percent=90))
-    encoder.compress(ImageEncodingRequest(source, low, ImageCompressionMode.BALANCED, None, output_format, ImageResizeOption.KEEP_ORIGINAL, _config(), quality_percent=30))
+    encoder.compress(
+        ImageEncodingRequest(
+            source,
+            high,
+            ImageCompressionMode.BALANCED,
+            None,
+            output_format,
+            ImageResizeOption.KEEP_ORIGINAL,
+            _config(),
+            quality_percent=90,
+        )
+    )
+    encoder.compress(
+        ImageEncodingRequest(
+            source,
+            low,
+            ImageCompressionMode.BALANCED,
+            None,
+            output_format,
+            ImageResizeOption.KEEP_ORIGINAL,
+            _config(),
+            quality_percent=30,
+        )
+    )
     assert high.stat().st_size > low.stat().st_size
 
 
-def test_requested_percentage_and_custom_dimensions_preserve_aspect_ratio_and_do_not_upscale(tmp_path: Path) -> None:
+def test_requested_percentage_and_custom_dimensions_preserve_aspect_ratio_and_do_not_upscale(
+    tmp_path: Path,
+) -> None:
     source = tmp_path / "source.jpg"
     _save(source, _colorful_image((400, 200)), "JPEG")
     encoder = PillowImageEncoder()
-    percentage = encoder.compress(ImageEncodingRequest(source, tmp_path / "percent.jpg", ImageCompressionMode.BALANCED, None, ImageOutputFormat.JPEG, ImageResizeOption.PERCENTAGE, _config(), resize_percent=75))
-    custom = encoder.compress(ImageEncodingRequest(source, tmp_path / "custom.jpg", ImageCompressionMode.BALANCED, None, ImageOutputFormat.JPEG, ImageResizeOption.CUSTOM, _config(), custom_width=200))
+    percentage = encoder.compress(
+        ImageEncodingRequest(
+            source,
+            tmp_path / "percent.jpg",
+            ImageCompressionMode.BALANCED,
+            None,
+            ImageOutputFormat.JPEG,
+            ImageResizeOption.PERCENTAGE,
+            _config(),
+            resize_percent=75,
+        )
+    )
+    custom = encoder.compress(
+        ImageEncodingRequest(
+            source,
+            tmp_path / "custom.jpg",
+            ImageCompressionMode.BALANCED,
+            None,
+            ImageOutputFormat.JPEG,
+            ImageResizeOption.CUSTOM,
+            _config(),
+            custom_width=200,
+        )
+    )
     assert (percentage.width, percentage.height) == (300, 150)
     assert (custom.width, custom.height) == (200, 100)
     with pytest.raises(InvalidTargetSizeError):
-        encoder.compress(ImageEncodingRequest(source, tmp_path / "upscale.jpg", ImageCompressionMode.BALANCED, None, ImageOutputFormat.JPEG, ImageResizeOption.CUSTOM, _config(), custom_width=800))
+        encoder.compress(
+            ImageEncodingRequest(
+                source,
+                tmp_path / "upscale.jpg",
+                ImageCompressionMode.BALANCED,
+                None,
+                ImageOutputFormat.JPEG,
+                ImageResizeOption.CUSTOM,
+                _config(),
+                custom_width=800,
+            )
+        )
 
 
 def test_target_respects_quality_floor_and_resize_permission(tmp_path: Path) -> None:
     source = tmp_path / "source.jpg"
     _save(source, _colorful_image((800, 600)), "JPEG")
     encoder = PillowImageEncoder()
-    request = ImageEncodingRequest(source, tmp_path / "no-resize.jpg", ImageCompressionMode.TARGET_SIZE, 10 * 1024, ImageOutputFormat.JPEG, ImageResizeOption.KEEP_ORIGINAL, _config(target_resize_max_attempts=4), quality_percent=90, allow_resize_for_target=False)
+    request = ImageEncodingRequest(
+        source,
+        tmp_path / "no-resize.jpg",
+        ImageCompressionMode.TARGET_SIZE,
+        10 * 1024,
+        ImageOutputFormat.JPEG,
+        ImageResizeOption.KEEP_ORIGINAL,
+        _config(target_resize_max_attempts=4),
+        quality_percent=90,
+        allow_resize_for_target=False,
+    )
     with pytest.raises(ImageTargetSizeUnreachable):
         encoder.compress(request)
-    result = encoder.compress(ImageEncodingRequest(source, tmp_path / "resize.jpg", ImageCompressionMode.TARGET_SIZE, 10 * 1024, ImageOutputFormat.JPEG, ImageResizeOption.KEEP_ORIGINAL, _config(target_resize_max_attempts=8), quality_percent=35, allow_resize_for_target=True))
+    result = encoder.compress(
+        ImageEncodingRequest(
+            source,
+            tmp_path / "resize.jpg",
+            ImageCompressionMode.TARGET_SIZE,
+            10 * 1024,
+            ImageOutputFormat.JPEG,
+            ImageResizeOption.KEEP_ORIGINAL,
+            _config(target_resize_max_attempts=8),
+            quality_percent=35,
+            allow_resize_for_target=True,
+        )
+    )
     assert result.target_achieved and result.resized_for_target
     assert (tmp_path / "resize.jpg").stat().st_size <= 10 * 1024
 
@@ -379,7 +636,9 @@ def test_target_size_failure_persists_safe_context_and_message() -> None:
     failed = job_service.get(job.id)
     assert failed.status.value == "failed"
     assert failed.error_code == "target_size_unreachable"
-    assert failed.safe_error_message == "We couldn’t reach 100 KB with the selected format and limits."
+    assert (
+        failed.safe_error_message == "We couldn’t reach 100 KB with the selected format and limits."
+    )
     assert failed.target_failure_context == {
         "requested_target_bytes": 102_400,
         "smallest_achieved_bytes": 108_427,

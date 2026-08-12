@@ -18,7 +18,7 @@ from app.utils.files import generate_storage_key, original_filename_metadata
 
 # This is the common static raster surface used by both compression and
 # conversion.  Each use case applies its own narrower output policy.
-SUPPORTED_IMAGE_FORMATS = {"JPEG", "PNG", "WEBP", "ICO", "BMP", "TIFF"}
+SUPPORTED_IMAGE_FORMATS = {"JPEG", "PNG", "WEBP", "AVIF", "ICO", "BMP", "TIFF"}
 
 
 class ImageProbeService:
@@ -44,7 +44,9 @@ class ImageProbeService:
         object_key = generate_storage_key(".image")
         try:
             try:
-                size_bytes = self._storage.put_stream(stream, object_key, self._max_upload_size_bytes)
+                size_bytes = self._storage.put_stream(
+                    stream, object_key, self._max_upload_size_bytes
+                )
             except ValueError as exc:
                 raise FileTooLargeError() from exc
             if size_bytes <= 0:
@@ -58,7 +60,9 @@ class ImageProbeService:
             source = self._storage.download_to(object_key, Path(workspace) / "probe-input")
             return self.probe(source, filename=filename, size_bytes=size_bytes)
 
-    def probe(self, source: Path, filename: str | None = None, size_bytes: int | None = None) -> ImageMetadata:
+    def probe(
+        self, source: Path, filename: str | None = None, size_bytes: int | None = None
+    ) -> ImageMetadata:
         if not source.is_file():
             raise InvalidImageError()
         actual_size = source.stat().st_size if size_bytes is None else size_bytes
@@ -79,7 +83,11 @@ class ImageProbeService:
                         raise UnsupportedAnimatedImageError()
                     if image_format not in SUPPORTED_IMAGE_FORMATS:
                         raise UnsupportedMediaError()
-                    icon_sizes = tuple(sorted(image.ico.sizes())) if image_format == "ICO" and hasattr(image, "ico") else ()
+                    icon_sizes = (
+                        tuple(sorted(image.ico.sizes()))
+                        if image_format == "ICO" and hasattr(image, "ico")
+                        else ()
+                    )
                     normalized = ImageOps.exif_transpose(image)
                     width, height = normalized.size
                     self._validate_dimensions(width, height)
@@ -97,7 +105,13 @@ class ImageProbeService:
                     )
         except (UnsupportedMediaError, UnsupportedAnimatedImageError, ImageDimensionsExceededError):
             raise
-        except (Image.DecompressionBombError, Image.DecompressionBombWarning, UnidentifiedImageError, OSError, ValueError) as exc:
+        except (
+            Image.DecompressionBombError,
+            Image.DecompressionBombWarning,
+            UnidentifiedImageError,
+            OSError,
+            ValueError,
+        ) as exc:
             raise InvalidImageError() from exc
 
     def _validate_dimensions(self, width: int, height: int) -> None:

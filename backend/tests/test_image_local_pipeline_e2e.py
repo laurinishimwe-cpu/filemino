@@ -32,7 +32,7 @@ def _diagnostics(queue: Queue, job_id: str, status: str | None) -> str:
         rq_status, exception = rq_job.get_status(refresh=True), rq_job.exc_info or "<none>"
     except Exception as exc:
         rq_status, exception = f"unavailable ({type(exc).__name__})", "<unavailable>"
-    return f"queue={queue.name!r}; rq_status={rq_status!r}; queued={queue.get_job_ids()!r}; started={queue.started_job_registry.get_job_ids()!r}; finished={queue.finished_job_registry.get_job_ids()!r}; failed={queue.failed_job_registry.get_job_ids()!r}; fluxfile_status={status!r}; rq_exception={exception}"
+    return f"queue={queue.name!r}; rq_status={rq_status!r}; queued={queue.get_job_ids()!r}; started={queue.started_job_registry.get_job_ids()!r}; finished={queue.finished_job_registry.get_job_ids()!r}; failed={queue.failed_job_registry.get_job_ids()!r}; filemino_status={status!r}; rq_exception={exception}"
 
 
 @pytest.mark.e2e
@@ -52,8 +52,8 @@ def test_local_storage_redis_rq_image_pipeline(
     target_size_bytes: int | None,
     output_format: ImageOutputFormat,
 ) -> None:
-    if os.environ.get("FLUXFILE_RUN_E2E") != "1":
-        pytest.skip("Set FLUXFILE_RUN_E2E=1 to run the Redis/RQ image end-to-end test")
+    if os.environ.get("FILEMINO_RUN_E2E") != "1":
+        pytest.skip("Set FILEMINO_RUN_E2E=1 to run the Redis/RQ image end-to-end test")
     redis_url = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
     redis = Redis.from_url(redis_url, socket_connect_timeout=2, socket_timeout=2)
     try:
@@ -61,7 +61,7 @@ def test_local_storage_redis_rq_image_pipeline(
     except Exception:
         pytest.skip("Redis is not reachable")
 
-    queue_name = f"fluxfile-image-e2e-{uuid4().hex}"
+    queue_name = f"filemino-image-e2e-{uuid4().hex}"
     monkeypatch.setenv("TEMP_DIRECTORY", str(tmp_path))
     monkeypatch.setenv("STORAGE_BACKEND", "local")
     monkeypatch.setenv("REDIS_URL", redis_url)
@@ -128,15 +128,15 @@ def test_local_storage_redis_rq_image_pipeline(
 @pytest.mark.e2e
 def test_local_storage_redis_rq_image_conversion_pipeline(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Exercise PNG → WebP through the same Windows spawn-worker path."""
-    if os.environ.get("FLUXFILE_RUN_E2E") != "1":
-        pytest.skip("Set FLUXFILE_RUN_E2E=1 to run the Redis/RQ image end-to-end test")
+    if os.environ.get("FILEMINO_RUN_E2E") != "1":
+        pytest.skip("Set FILEMINO_RUN_E2E=1 to run the Redis/RQ image end-to-end test")
     redis_url = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
     redis = Redis.from_url(redis_url, socket_connect_timeout=2, socket_timeout=2)
     try:
         redis.ping()
     except Exception:
         pytest.skip("Redis is not reachable")
-    queue_name = f"fluxfile-image-conversion-e2e-{uuid4().hex}"
+    queue_name = f"filemino-image-conversion-e2e-{uuid4().hex}"
     monkeypatch.setenv("TEMP_DIRECTORY", str(tmp_path)); monkeypatch.setenv("STORAGE_BACKEND", "local"); monkeypatch.setenv("REDIS_URL", redis_url); monkeypatch.setenv("IMAGE_QUEUE_NAME", queue_name)
     get_settings.cache_clear(); settings = get_settings(); storage = LocalStorage(settings.temp_directory, settings.api_prefix)
     repository = RedisJobRepository(redis, settings.job_ttl_seconds); queue = RedisRQQueue(redis, settings.cpu_queue_name, settings.gpu_queue_name, queue_name)

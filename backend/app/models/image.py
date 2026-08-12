@@ -52,12 +52,105 @@ class ImageFormatCapability:
 
 
 IMAGE_FORMAT_CAPABILITIES: dict[str, ImageFormatCapability] = {
-    "PNG": ImageFormatCapability("PNG", "PNG", (".png",), ("image/png",), True, False, (ImageConversionOutputFormat.JPEG, ImageConversionOutputFormat.WEBP, ImageConversionOutputFormat.ICO), ImageConversionOutputFormat.WEBP),
-    "JPEG": ImageFormatCapability("JPEG", "JPG", (".jpg", ".jpeg"), ("image/jpeg",), False, False, (ImageConversionOutputFormat.PNG, ImageConversionOutputFormat.WEBP, ImageConversionOutputFormat.ICO), ImageConversionOutputFormat.WEBP),
-    "WEBP": ImageFormatCapability("WEBP", "WebP", (".webp",), ("image/webp",), True, False, (ImageConversionOutputFormat.PNG, ImageConversionOutputFormat.JPEG, ImageConversionOutputFormat.ICO), ImageConversionOutputFormat.PNG),
-    "ICO": ImageFormatCapability("ICO", "ICO", (".ico",), ("image/x-icon", "image/vnd.microsoft.icon"), True, False, (ImageConversionOutputFormat.PNG, ImageConversionOutputFormat.JPEG, ImageConversionOutputFormat.WEBP), ImageConversionOutputFormat.PNG),
-    "BMP": ImageFormatCapability("BMP", "BMP", (".bmp",), ("image/bmp",), False, False, (ImageConversionOutputFormat.PNG, ImageConversionOutputFormat.JPEG, ImageConversionOutputFormat.WEBP), ImageConversionOutputFormat.PNG),
-    "TIFF": ImageFormatCapability("TIFF", "TIFF", (".tif", ".tiff"), ("image/tiff",), True, False, (ImageConversionOutputFormat.PNG, ImageConversionOutputFormat.JPEG, ImageConversionOutputFormat.WEBP), ImageConversionOutputFormat.PNG),
+    "PNG": ImageFormatCapability(
+        "PNG",
+        "PNG",
+        (".png",),
+        ("image/png",),
+        True,
+        False,
+        (
+            ImageConversionOutputFormat.JPEG,
+            ImageConversionOutputFormat.WEBP,
+            ImageConversionOutputFormat.ICO,
+        ),
+        ImageConversionOutputFormat.WEBP,
+    ),
+    "JPEG": ImageFormatCapability(
+        "JPEG",
+        "JPG",
+        (".jpg", ".jpeg"),
+        ("image/jpeg",),
+        False,
+        False,
+        (
+            ImageConversionOutputFormat.PNG,
+            ImageConversionOutputFormat.WEBP,
+            ImageConversionOutputFormat.ICO,
+        ),
+        ImageConversionOutputFormat.WEBP,
+    ),
+    "WEBP": ImageFormatCapability(
+        "WEBP",
+        "WebP",
+        (".webp",),
+        ("image/webp",),
+        True,
+        False,
+        (
+            ImageConversionOutputFormat.PNG,
+            ImageConversionOutputFormat.JPEG,
+            ImageConversionOutputFormat.ICO,
+        ),
+        ImageConversionOutputFormat.PNG,
+    ),
+    "AVIF": ImageFormatCapability(
+        "AVIF",
+        "AVIF",
+        (".avif",),
+        ("image/avif",),
+        True,
+        False,
+        (
+            ImageConversionOutputFormat.PNG,
+            ImageConversionOutputFormat.JPEG,
+            ImageConversionOutputFormat.WEBP,
+            ImageConversionOutputFormat.ICO,
+        ),
+        ImageConversionOutputFormat.WEBP,
+    ),
+    "ICO": ImageFormatCapability(
+        "ICO",
+        "ICO",
+        (".ico",),
+        ("image/x-icon", "image/vnd.microsoft.icon"),
+        True,
+        False,
+        (
+            ImageConversionOutputFormat.PNG,
+            ImageConversionOutputFormat.JPEG,
+            ImageConversionOutputFormat.WEBP,
+        ),
+        ImageConversionOutputFormat.PNG,
+    ),
+    "BMP": ImageFormatCapability(
+        "BMP",
+        "BMP",
+        (".bmp",),
+        ("image/bmp",),
+        False,
+        False,
+        (
+            ImageConversionOutputFormat.PNG,
+            ImageConversionOutputFormat.JPEG,
+            ImageConversionOutputFormat.WEBP,
+        ),
+        ImageConversionOutputFormat.PNG,
+    ),
+    "TIFF": ImageFormatCapability(
+        "TIFF",
+        "TIFF",
+        (".tif", ".tiff"),
+        ("image/tiff",),
+        True,
+        False,
+        (
+            ImageConversionOutputFormat.PNG,
+            ImageConversionOutputFormat.JPEG,
+            ImageConversionOutputFormat.WEBP,
+        ),
+        ImageConversionOutputFormat.PNG,
+    ),
 }
 
 
@@ -97,7 +190,7 @@ def resolve_image_output_format(
     if requested is ImageOutputFormat.WEBP:
         return "WEBP"
     if requested is ImageOutputFormat.ORIGINAL:
-        return normalized
+        return normalized if normalized in {"JPEG", "PNG", "WEBP"} else "WEBP"
     if normalized == "PNG" and mode is not ImageCompressionMode.BEST_QUALITY:
         return "WEBP"
     if has_alpha:

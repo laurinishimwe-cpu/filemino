@@ -34,8 +34,6 @@ export async function generateMetadata({ params }: TargetPageProps): Promise<Met
 
 export default async function TargetPage({ params }: TargetPageProps) {
   const { target } = await params;
-  const page = getImageTargetPage(target);
-  if (!page) notFound();
   const targetPage = getImageTargetPage(target);
   if (targetPage) return <TargetSizePage page={targetPage} />;
   const conversionPage = getConversionPage(target);

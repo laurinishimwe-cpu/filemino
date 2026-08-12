@@ -51,7 +51,7 @@ def _make_video(ffmpeg: str, destination: Path, duration: int = 3) -> None:
     )
 
 
-def _rq_diagnostics(queue: Queue, job_id: str, fluxfile_job_status: str | None) -> str:
+def _rq_diagnostics(queue: Queue, job_id: str, filemino_job_status: str | None) -> str:
     """Failure-only test output; never surfaced by the application API."""
     try:
         rq_job = RQJob.fetch(job_id, connection=queue.connection)
@@ -66,7 +66,7 @@ def _rq_diagnostics(queue: Queue, job_id: str, fluxfile_job_status: str | None) 
         f"started={queue.started_job_registry.get_job_ids()!r}; "
         f"finished={queue.finished_job_registry.get_job_ids()!r}; "
         f"failed={queue.failed_job_registry.get_job_ids()!r}; "
-        f"fluxfile_status={fluxfile_job_status!r}; rq_exception={exception}"
+        f"filemino_status={filemino_job_status!r}; rq_exception={exception}"
     )
 
 
@@ -122,8 +122,8 @@ def test_real_cancellation_terminates_the_owned_ffmpeg_process_and_cleans_scratc
 
 @pytest.mark.e2e
 def test_local_storage_redis_rq_cpu_pipeline(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    if os.environ.get("FLUXFILE_RUN_E2E") != "1":
-        pytest.skip("Set FLUXFILE_RUN_E2E=1 to run the Redis/RQ end-to-end test")
+    if os.environ.get("FILEMINO_RUN_E2E") != "1":
+        pytest.skip("Set FILEMINO_RUN_E2E=1 to run the Redis/RQ end-to-end test")
     ffmpeg, ffprobe = _require_media_tools()
     redis_url = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
     redis = Redis.from_url(redis_url, socket_connect_timeout=2, socket_timeout=2)
@@ -132,7 +132,7 @@ def test_local_storage_redis_rq_cpu_pipeline(tmp_path: Path, monkeypatch: pytest
     except Exception:
         pytest.skip("Redis is not reachable")
 
-    queue_name = f"fluxfile-e2e-{uuid4().hex}"
+    queue_name = f"filemino-e2e-{uuid4().hex}"
     monkeypatch.setenv("TEMP_DIRECTORY", str(tmp_path))
     monkeypatch.setenv("STORAGE_BACKEND", "local")
     monkeypatch.setenv("FFMPEG_BINARY", ffmpeg)

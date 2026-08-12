@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { AutoScrollRegion, Button, Card } from "@/components/ui";
 import { DropZone, ProcessingState, RelatedTools, ResultCard, ToolErrorCard, ToolPage } from "@/components/tools";
 import { FileToolIcon } from "@/components/icons/files/FileToolIcon";
-import { cancelJob, createImageCompressionJob, FluxFileApiError, getDownload, initializeUpload, uploadFile } from "@/lib/api/fluxfile-client";
+import { cancelJob, createImageCompressionJob, FileMinoApiError, getDownload, initializeUpload, uploadFile } from "@/lib/api/filemino-client";
 import { pollJobUntilTerminal } from "@/lib/api/poll-job";
 import { errorMessageForImageCode, isImageTargetSizeValid, kilobytesToBytes, toFrontendJobState, type ImageCompressionMode, type ImageOutputFormat, type ImageResizeOption, type JobResponse } from "@/lib/api/types";
 import { IMAGE_ACCEPT_TYPES, IMAGE_TARGET_MAX_BYTES, IMAGE_TARGET_MIN_BYTES, MAX_IMAGE_UPLOAD_SIZE } from "./config";
@@ -19,8 +19,8 @@ function isAbortError(error: unknown) {
 }
 
 function messageForError(error: unknown) {
-  if (error instanceof FluxFileApiError) return errorMessageForImageCode(error.code);
-  return "We couldn’t connect to FluxFile. Please try again.";
+  if (error instanceof FileMinoApiError) return errorMessageForImageCode(error.code);
+  return "We couldn’t connect to FileMino. Please try again.";
 }
 
 type ImageCompressorProps = {
@@ -145,7 +145,7 @@ export function ImageCompressor({
       applyJob(nextJob); void pollJob(nextJob.id);
     } catch (caught) {
       if (!isAbortError(caught) && mounted.current) {
-        setErrorCode(caught instanceof FluxFileApiError ? caught.code : null);
+        setErrorCode(caught instanceof FileMinoApiError ? caught.code : null);
         setError(messageForError(caught)); setView("error");
       }
     } finally { if (uploadController.current === controller) uploadController.current = null; submitting.current = false; }

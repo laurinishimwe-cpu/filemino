@@ -1,4 +1,4 @@
-import { getJob } from "./fluxfile-client";
+import { getJob } from "./filemino-client";
 import type { JobResponse } from "./types";
 
 const terminalStatuses = new Set(["completed", "failed", "cancelled", "expired"]);

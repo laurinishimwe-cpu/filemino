@@ -7,8 +7,8 @@ from app.utils.diagnostic import DiagnosticStatus, run_diagnostics
 def test_diagnostic_reports_missing_media_binaries_without_secrets(tmp_path: Path) -> None:
     settings = Settings(
         temp_directory=tmp_path,
-        ffmpeg_binary="missing-fluxfile-ffmpeg",
-        ffprobe_binary="missing-fluxfile-ffprobe",
+        ffmpeg_binary="missing-filemino-ffmpeg",
+        ffprobe_binary="missing-filemino-ffprobe",
         redis_url="redis://user:secret@localhost:6379/0",
     )
 

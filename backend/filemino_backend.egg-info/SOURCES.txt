@@ -47,11 +47,11 @@ app/utils/ffmpeg.py
 app/utils/files.py
 app/workers/__init__.py
 app/workers/compression_worker.py
-fluxfile_backend.egg-info/PKG-INFO
-fluxfile_backend.egg-info/SOURCES.txt
-fluxfile_backend.egg-info/dependency_links.txt
-fluxfile_backend.egg-info/requires.txt
-fluxfile_backend.egg-info/top_level.txt
+filemino_backend.egg-info/PKG-INFO
+filemino_backend.egg-info/SOURCES.txt
+filemino_backend.egg-info/dependency_links.txt
+filemino_backend.egg-info/requires.txt
+filemino_backend.egg-info/top_level.txt
 tests/test_config.py
 tests/test_ffmpeg_cpu_encoder.py
 tests/test_health.py

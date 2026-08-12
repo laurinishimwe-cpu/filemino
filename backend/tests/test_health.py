@@ -8,4 +8,4 @@ def test_health_endpoint_returns_application_status() -> None:
 
     assert response.status_code == 200
     assert response.json()["status"] == "ok"
-    assert response.json()["app_name"] == "FluxFile API"
+    assert response.json()["app_name"] == "FileMino API"

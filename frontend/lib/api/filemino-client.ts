@@ -2,10 +2,10 @@ import type { CompressionOptions, DownloadResponse, ImageCompressionOptions, Ima
 
 const apiBaseUrl = (process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:8000/api/v1").replace(/\/$/, "");
 
-export class FluxFileApiError extends Error {
+export class FileMinoApiError extends Error {
   constructor(message: string, public readonly code: string | null, public readonly status: number) {
     super(message);
-    this.name = "FluxFileApiError";
+    this.name = "FileMinoApiError";
   }
 }
 
@@ -26,7 +26,7 @@ async function responseJson<T>(response: Response): Promise<T> {
     try { payload = await response.json() as ApiErrorPayload; } catch { /* Safe fallback below. */ }
     const detail = typeof payload?.detail === "string" ? payload.detail : "The request could not be completed.";
     const code = typeof payload?.code === "string" ? payload.code : null;
-    throw new FluxFileApiError(detail, code, response.status);
+    throw new FileMinoApiError(detail, code, response.status);
   }
   return response.json() as Promise<T>;
 }
@@ -36,7 +36,7 @@ function xhrError(request: XMLHttpRequest) {
   try { payload = JSON.parse(request.responseText) as ApiErrorPayload; } catch { /* Safe fallback below. */ }
   const detail = typeof payload?.detail === "string" ? payload.detail : "Upload failed.";
   const code = typeof payload?.code === "string" ? payload.code : null;
-  return new FluxFileApiError(detail, code, request.status || 0);
+  return new FileMinoApiError(detail, code, request.status || 0);
 }
 
 export async function initializeUpload(file: File, signal?: AbortSignal) {

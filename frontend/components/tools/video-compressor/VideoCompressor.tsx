@@ -5,14 +5,14 @@ import { AutoScrollRegion, Button, Card, Input, Select } from "@/components/ui";
 import { DropZone, ProcessingState, RelatedTools, ResultCard, ToolErrorCard, ToolPage } from "@/components/tools";
 import { FileToolIcon } from "@/components/icons/files/FileToolIcon";
 import {
-  FluxFileApiError,
+  FileMinoApiError,
   cancelJob,
   completeUpload,
   getDownload,
   getJob,
   initializeUpload,
   uploadFile,
-} from "@/lib/api/fluxfile-client";
+} from "@/lib/api/filemino-client";
 import {
   errorMessageForCode,
   megabytesToBytes,
@@ -43,8 +43,8 @@ function isAbortError(error: unknown) {
 }
 
 function messageForError(error: unknown) {
-  if (error instanceof FluxFileApiError) return errorMessageForCode(error.code);
-  return "We couldn’t connect to FluxFile. Please try again.";
+  if (error instanceof FileMinoApiError) return errorMessageForCode(error.code);
+  return "We couldn’t connect to FileMino. Please try again.";
 }
 
 export function VideoCompressor() {

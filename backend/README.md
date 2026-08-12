@@ -1,4 +1,4 @@
-# FluxFile backend
+# FileMino backend
 
 ## Architecture
 
@@ -23,12 +23,12 @@ Before starting the API, check the non-secret local prerequisites:
 ```bash
 python -m app.utils.diagnostic
 # or, after installing the package:
-fluxfile-diagnose
+filemino-diagnose
 ```
 
 The command reports `PASS`, `WARNING`, or `FAIL` for Python, configured media binaries and versions, Redis reachability (host only), storage mode, writable scratch/storage directories, and optional NVENC detection. It never prints Redis passwords, R2 credentials, signed URLs, or application secrets.
 
-RQ 2.10's `SpawnWorker` calls Unix-only `os.wait4`, so FluxFile uses a tiny compatibility subclass that preserves its spawn-based execution model on Windows:
+RQ 2.10's `SpawnWorker` calls Unix-only `os.wait4`, so FileMino uses a tiny compatibility subclass that preserves its spawn-based execution model on Windows:
 
 ```bash
 rq worker -w app.workers.windows_spawn_worker.WindowsSpawnWorker --url redis://localhost:6379/0 video-cpu
@@ -56,7 +56,7 @@ An NVIDIA-capable worker is optional and uses the same platform-specific command
 
 The production flow creates a queued job only after an upload with a server-generated storage key has completed. `GET /api/v1/jobs/{job_id}` provides stable status polling, and `DELETE /api/v1/jobs/{job_id}` marks a job cancelled. The worker progresses jobs through `queued → probing → processing → completed` and invokes the CPU encoder only for jobs whose server-owned input storage key refers to an uploaded file.
 
-Job records are JSON documents at private Redis keys shaped as `fluxfile:jobs:{uuid}` and have `JOB_TTL_SECONDS` applied with every update. Their storage keys are data only, never API response fields. A future expiry cleanup worker can use these keys to remove corresponding temporary objects; this stage does not yet create persistent upload/output objects.
+Job records are JSON documents at private Redis keys shaped as `filemino:jobs:{uuid}` and have `JOB_TTL_SECONDS` applied with every update. Their storage keys are data only, never API response fields. A future expiry cleanup worker can use these keys to remove corresponding temporary objects; this stage does not yet create persistent upload/output objects.
 
 Queued RQ jobs are cancelled where RQ permits it. Running FFmpeg jobs are cooperatively cancelled by terminating the child process when the worker observes the cancellation state. Abrupt machine or process termination still requires a future storage sweeper for orphaned workspaces and objects; normal success, encoder failures, cancellation, and timeout clean temporary intermediate files through `TemporaryDirectory`.
 
@@ -74,7 +74,7 @@ FFmpeg emits `-progress pipe:1 -nostats`. The encoder parses `out_time_us`/`out_
 
 Jobs are routed by `ProcessingSelectionService` from their existing complexity classification. `CPU_QUEUE_NAME` and `GPU_QUEUE_NAME` default to `video-cpu` and `video-gpu`. With `GPU_ENABLED=false`, or when `h264_nvenc` is not in `GPU_AVAILABLE_ENCODERS`, jobs remain on CPU. `GPU_MIN_COMPLEXITY` determines the first class eligible for GPU routing (normally `heavy`).
 
-At the GPU worker startup point, FluxFile runs the fixed command `ffmpeg -hide_banner -encoders` and only permits NVENC execution if `h264_nvenc` is reported. FFmpeg command construction remains in `FFmpegNvidiaEncoder`; the worker only chooses the encoder and orchestrates the job. The current compatible output remains MP4/H.264/AAC. `hevc_nvenc` and `av1_nvenc` are detected for future policy use but are not selected yet.
+At the GPU worker startup point, FileMino runs the fixed command `ffmpeg -hide_banner -encoders` and only permits NVENC execution if `h264_nvenc` is reported. FFmpeg command construction remains in `FFmpegNvidiaEncoder`; the worker only chooses the encoder and orchestrates the job. The current compatible output remains MP4/H.264/AAC. `hevc_nvenc` and `av1_nvenc` are detected for future policy use but are not selected yet.
 
 NVENC presets are separate from CPU x264 presets: NVENC uses `p` presets and CQ values, not CPU CRF values. If a GPU worker cannot run and `GPU_FALLBACK_TO_CPU=true`, it explicitly hands the job to the CPU implementation; set it to `false` when GPU-only handling is a policy requirement.
 
@@ -88,7 +88,7 @@ ffprobe output is internal-only JSON. Invalid JSON, execution failures, and file
 
 ## Image compression
 
-Image Compressor uses Pillow through `app/encoders/image/ImageEncoder`; routes and services do not depend on Pillow directly. The first implementation accepts only decoded JPEG, PNG, and WebP files. Names, extensions, and content types are metadata only: Pillow must successfully decode the file before it can become an image job.
+Image processing uses Pillow behind encoder/converter abstractions; routes and services do not depend on Pillow directly. The shared probe accepts decoded JPEG, PNG, WebP, AVIF, ICO, BMP, and TIFF files, while each tool exposes only compatible operations. Names, extensions, and content types are metadata only: Pillow must successfully decode the file before it can become an image job.
 
 `ImageProbeService` returns normalized filename, byte size, actual format, EXIF-oriented dimensions, mode, alpha support, and animation details. Animated images are rejected rather than silently processing their first frame. The service also enforces `IMAGE_MAX_PIXELS`, `IMAGE_MAX_WIDTH`, and `IMAGE_MAX_HEIGHT` while retaining Pillow's decompression-bomb protections.
 
@@ -151,7 +151,7 @@ Run media integration tests with `python -m pytest -m integration` once FFmpeg a
 Run the LocalStorage → Redis → RQ → FFmpeg end-to-end test only after starting Redis and enabling it explicitly:
 
 ```bash
-$env:FLUXFILE_RUN_E2E = "1" # PowerShell
+$env:FILEMINO_RUN_E2E = "1" # PowerShell
 python -m pytest -m e2e
 ```
 

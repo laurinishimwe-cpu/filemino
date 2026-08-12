@@ -6,7 +6,7 @@ export type ToolDefinition = {
   href?: string;
 };
 
-export const fluxFileTools: ToolDefinition[] = [
+export const fileMinoTools: ToolDefinition[] = [
   { name: "Video Compressor", icon: "video", href: "/video-compressor" },
   { name: "Image Compressor", icon: "image", href: "/image-compressor" },
   { name: "Remove Background", icon: "transparent-image" },
@@ -15,4 +15,4 @@ export const fluxFileTools: ToolDefinition[] = [
   { name: "Video Converter", icon: "convert" },
 ];
 
-export const relatedFluxFileTools = fluxFileTools.filter((tool) => tool.name !== "Video Compressor");
+export const relatedFileMinoTools = fileMinoTools.filter((tool) => tool.name !== "Video Compressor");

@@ -38,7 +38,7 @@ def detect_nvidia_encoders(binary: str) -> set[str]:
 
 
 class FFmpegNvidiaEncoder(FFmpegCPUEncoder):
-    """Optional NVENC implementation that preserves FluxFile's MP4/H.264 contract."""
+    """Optional NVENC implementation that preserves FileMino's MP4/H.264 contract."""
 
     def __init__(self, binary: str, timeout_seconds: int, available: set[str] | None = None) -> None:
         super().__init__(binary, timeout_seconds)

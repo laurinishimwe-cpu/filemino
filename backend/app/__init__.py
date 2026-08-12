@@ -1,1 +1,1 @@
-"""FluxFile backend package."""
+"""FileMino backend package."""

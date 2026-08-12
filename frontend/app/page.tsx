@@ -10,7 +10,7 @@ export default function Home() {
       <Container>
         <main className="landing-page">
           <section className="landing-hero">
-            <Badge tone="primary">FluxFile</Badge>
+            <Badge tone="primary">FileMino</Badge>
             <h1>
               Fast tools for{" "}
               <span className="landing-hero-accent">everyday files.</span>
@@ -20,7 +20,7 @@ export default function Home() {
 
           <section className="landing-support">
             <Card className="landing-info-card">
-              <h2>Why FluxFile</h2>
+              <h2>Why FileMino</h2>
               <ul>
                 {benefits.map((benefit) => (
                   <li key={benefit}>{benefit}</li>
@@ -40,7 +40,7 @@ export default function Home() {
             </Card>
           </section>
 
-          <section id="about" className="sr-only">About FluxFile</section>
+          <section id="about" className="sr-only">About FileMino</section>
           <section id="privacy" className="sr-only">Privacy</section>
           <section id="terms" className="sr-only">Terms</section>
         </main>

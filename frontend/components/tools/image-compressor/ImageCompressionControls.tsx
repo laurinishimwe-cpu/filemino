@@ -95,7 +95,7 @@ export function ImageCompressionControls(props: Props) {
     </fieldset>
     {mode === "target_size" && <fieldset>
       <legend className="tool-control-label">Target size</legend>
-      <p className="tool-control-description">FluxFile aims for the best result at or below your target.</p>
+      <p className="tool-control-description">FileMino aims for the best result at or below your target.</p>
       <div className="tool-options tool-options-compact" role="radiogroup" aria-label="Target size">
         {(["20 KB", "50 KB", "100 KB", "200 KB", "500 KB", "Custom"] as TargetPreset[]).map((option) => <button className="tool-option" data-selected={targetPreset === option} type="button" role="radio" aria-checked={targetPreset === option} key={option} onClick={() => setTargetPreset(option)}>{option}</button>)}
       </div>
@@ -115,7 +115,7 @@ export function ImageCompressionControls(props: Props) {
     {showMoreControl && <div className="image-advanced-controls">
       {canAdjustQuality && <label className="image-quality-control">
         <span className="tool-control-label">{mode === "target_size" ? "Minimum quality" : "Quality"}</span>
-        <span className="tool-control-description">{mode === "target_size" ? "FluxFile will not reduce quality below this while trying your target." : "Higher quality keeps more detail; lower quality makes a smaller file."}</span>
+        <span className="tool-control-description">{mode === "target_size" ? "FileMino will not reduce quality below this while trying your target." : "Higher quality keeps more detail; lower quality makes a smaller file."}</span>
         <div className="image-range-row"><input type="range" min="1" max="100" value={effectiveQuality} onChange={(event) => setQualityPercent(Number(event.target.value))} aria-label={mode === "target_size" ? "Minimum quality" : "Image quality"} /><output>{effectiveQuality}%</output></div>
       </label>}
       <div className="image-dimensions-control">

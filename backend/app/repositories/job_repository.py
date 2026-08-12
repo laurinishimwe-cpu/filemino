@@ -53,7 +53,7 @@ class InMemoryJobRepository:
 class RedisJobRepository:
     """Redis JSON records with a TTL; public APIs never expose these keys."""
 
-    key_prefix = "fluxfile:jobs"
+    key_prefix = "filemino:jobs"
 
     def __init__(self, redis_client: Redis, ttl_seconds: int) -> None:
         self._redis = redis_client

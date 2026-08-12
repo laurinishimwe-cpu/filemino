@@ -25,6 +25,19 @@ def test_png_to_webp_preserves_alpha(tmp_path: Path) -> None:
         assert "A" in image.getbands()
 
 
+def test_avif_to_webp_preserves_alpha(tmp_path: Path) -> None:
+    source = tmp_path / "source.avif"
+    destination = tmp_path / "result.webp"
+    Image.new("RGBA", (80, 60), (30, 100, 220, 120)).save(source, format="AVIF")
+    result = PillowImageConverter().convert(
+        source, destination, ImageConversionOutputFormat.WEBP, None, None
+    )
+    assert result.alpha_preserved is True
+    with Image.open(destination) as image:
+        assert image.format == "WEBP"
+        assert "A" in image.getbands()
+
+
 def test_transparent_png_to_jpeg_requires_background(tmp_path: Path) -> None:
     source = tmp_path / "source.png"; _transparent_png(source)
     with pytest.raises(IncompatibleImageOutputError):

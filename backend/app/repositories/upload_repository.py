@@ -27,7 +27,7 @@ class InMemoryUploadRepository:
 
 
 class RedisUploadRepository:
-    key_prefix = "fluxfile:uploads"
+    key_prefix = "filemino:uploads"
     def __init__(self, redis_client: Redis) -> None:
         self._redis = redis_client
     def create(self, upload: Upload, ttl_seconds: int) -> Upload:
