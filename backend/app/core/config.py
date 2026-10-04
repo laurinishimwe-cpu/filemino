@@ -1,3 +1,4 @@
+from contextlib import suppress
 from functools import lru_cache
 from pathlib import Path
 
@@ -79,4 +80,9 @@ class Settings(BaseSettings):
 
 @lru_cache
 def get_settings() -> Settings:
-    return Settings()
+    settings = Settings()
+    # Probes and workers create scratch workspaces inside this directory, and
+    # tempfile.TemporaryDirectory() does not create missing parents.
+    with suppress(OSError):
+        settings.temp_directory.mkdir(parents=True, exist_ok=True)
+    return settings
