@@ -40,7 +40,7 @@ function page(targetKb: number, explanation: string, qualityNote: string): Image
   return {
     slug: `compress-image-to-${targetKb}kb`,
     targetKb,
-    title: `Compress Image to ${label} Online | FileMino`,
+    title: `Compress Image to ${label} Online`,
     description: `Reduce JPG, PNG, or WebP images to ${label} or less while preserving as much visual quality as possible.`,
     explanation,
     qualityNote,

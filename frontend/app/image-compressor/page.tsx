@@ -4,7 +4,7 @@ import { ImageCompressor } from "@/components/tools/image-compressor/ImageCompre
 import { ToolSeoContent } from "@/components/seo/ToolSeoContent";
 
 export const metadata: Metadata = {
-  title: "Compress Images Online | FileMino",
+  title: "Compress Images Online",
   description: "Compress JPG, PNG, and WebP images with configurable quality, target size, output format, and dimensions.",
   alternates: { canonical: "/image-compressor" },
 };
