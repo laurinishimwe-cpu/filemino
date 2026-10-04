@@ -28,10 +28,15 @@ def test_video_domain_models_are_independent_of_http() -> None:
 
 @pytest.mark.parametrize("source_format", ["AVIF", "BMP", "ICO", "TIFF"])
 @pytest.mark.parametrize("mode", list(ImageCompressionMode))
-def test_auto_output_uses_webp_for_sources_the_encoder_cannot_write(source_format: str, mode: ImageCompressionMode) -> None:
+def test_auto_output_uses_webp_for_sources_the_encoder_cannot_write(
+    source_format: str, mode: ImageCompressionMode
+) -> None:
     assert resolve_image_output_format(ImageOutputFormat.AUTO, source_format, False, mode) == "WEBP"
 
 
 @pytest.mark.parametrize("source_format", ["JPEG", "WEBP"])
 def test_auto_output_keeps_lossy_sources(source_format: str) -> None:
-    assert resolve_image_output_format(ImageOutputFormat.AUTO, source_format, False, ImageCompressionMode.BALANCED) == source_format
+    resolved = resolve_image_output_format(
+        ImageOutputFormat.AUTO, source_format, False, ImageCompressionMode.BALANCED
+    )
+    assert resolved == source_format
