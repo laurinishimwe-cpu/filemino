@@ -25,14 +25,13 @@ app.add_middleware(
 
 @app.exception_handler(ApplicationError)
 async def application_error_handler(_: Request, exc: ApplicationError) -> JSONResponse:
-    return JSONResponse(status_code=exc.status_code, content={"detail": exc.public_message, "code": exc.code})
+    return JSONResponse(status_code=exc.status_code, content={"detail": str(exc), "code": exc.code})
 
 
 @app.exception_handler(Exception)
 async def unhandled_error_handler(_: Request, exc: Exception) -> JSONResponse:
     logger.exception("Unhandled application error")
-    detail = "An unexpected error occurred." if not settings.debug else "An unexpected error occurred."
-    return JSONResponse(status_code=500, content={"detail": detail})
+    return JSONResponse(status_code=500, content={"detail": "An unexpected error occurred."})
 
 
 app.include_router(api_router, prefix=settings.api_prefix)

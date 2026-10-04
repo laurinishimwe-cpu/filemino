@@ -301,6 +301,20 @@ def test_job_api_contract_uses_injected_service() -> None:
     assert fetched.json()["status"] == "queued"
 
 
+def test_job_api_returns_specific_error_message() -> None:
+    service, _, _ = build_service()
+    job = create_job(service)
+    service.transition(job.id, JobStatus.FAILED)
+    app.dependency_overrides[get_job_service] = lambda: service
+    try:
+        response = TestClient(app).delete(f"/api/v1/jobs/{job.id}")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 422
+    assert response.json() == {"detail": "This job can no longer be cancelled.", "code": "REQUEST_FAILED"}
+
+
 def test_image_job_api_contract_uses_an_opaque_upload_id() -> None:
     service, _, _ = build_service()
     upload_id = UUID("00000000-0000-0000-0000-000000000001")
