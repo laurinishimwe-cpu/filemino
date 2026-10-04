@@ -8,11 +8,19 @@ from app.queue.base import JobQueue
 
 
 class RedisRQQueue(JobQueue):
-    def __init__(self, redis_client: Redis, queue_name: str, gpu_queue_name: str = "video-gpu", image_queue_name: str = "image-cpu") -> None:
+    def __init__(
+        self,
+        redis_client: Redis,
+        queue_name: str,
+        gpu_queue_name: str = "video-gpu",
+        image_queue_name: str = "image-cpu",
+        video_job_timeout: int | None = None,
+    ) -> None:
         self._redis = redis_client
         self._queue = Queue(queue_name, connection=redis_client)
         self._gpu_queue_name = gpu_queue_name
         self._image_queue_name = image_queue_name
+        self._video_job_timeout = video_job_timeout
 
     def enqueue_compression(self, job_id: UUID, queue_name: str = "video-cpu") -> None:
         queue = Queue(queue_name, connection=self._redis)
@@ -21,6 +29,7 @@ class RedisRQQueue(JobQueue):
             worker,
             str(job_id),
             job_id=str(job_id),
+            job_timeout=self._video_job_timeout,
         )
 
     def enqueue_image_compression(self, job_id: UUID, queue_name: str = "image-cpu") -> None:

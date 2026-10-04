@@ -13,13 +13,23 @@ from app.services.rate_limit_service import RateLimitService
 from app.services.guest_policy_service import GuestPolicy, GuestPolicyService
 from app.services.processing_selection_service import ProcessingSelectionService
 
+# RQ kills jobs after 180 seconds by default. Video jobs may encode for up to
+# FFMPEG_TIMEOUT_SECONDS, plus time to download the input and upload the output.
+VIDEO_JOB_TIMEOUT_HEADROOM_SECONDS = 300
+
 
 def get_job_service() -> JobService:
     """Compose infrastructure at the API edge; route handlers receive only the service."""
     settings = get_settings()
     redis_client = Redis.from_url(settings.redis_url)
     repository = RedisJobRepository(redis_client, settings.job_ttl_seconds)
-    queue = RedisRQQueue(redis_client, settings.cpu_queue_name, settings.gpu_queue_name, settings.image_queue_name)
+    queue = RedisRQQueue(
+        redis_client,
+        settings.cpu_queue_name,
+        settings.gpu_queue_name,
+        settings.image_queue_name,
+        video_job_timeout=settings.ffmpeg_timeout_seconds + VIDEO_JOB_TIMEOUT_HEADROOM_SECONDS,
+    )
     limiter=RateLimitService(redis_client,settings.rate_limit_hash_salt)
     configured_gpu_encoders = {encoder.strip() for encoder in settings.gpu_available_encoders.split(",") if encoder.strip()}
     selector=ProcessingSelectionService(settings.gpu_enabled,settings.gpu_min_complexity,configured_gpu_encoders,settings.cpu_queue_name,settings.gpu_queue_name)
