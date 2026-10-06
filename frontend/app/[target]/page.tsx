@@ -24,7 +24,7 @@ export async function generateMetadata({ params }: TargetPageProps): Promise<Met
     description: page.description,
     alternates: { canonical: path },
     openGraph: {
-      title: page.title,
+      title: `${page.title} | FileMino`,
       description: page.description,
       url: getAbsoluteUrl(path),
       type: "website",

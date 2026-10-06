@@ -1,6 +1,6 @@
 # FileMino
 
-FileMino is a full-stack media-processing application for compressing and converting video and image files without making the browser wait for heavy work to finish. The product is presented in the frontend as **FluxFile**.
+FileMino is a full-stack media-processing application for compressing and converting video and image files without making the browser wait for heavy work to finish.
 
 The core design decision is simple: an API request should create and track work, not perform FFmpeg or Pillow processing inside the request itself. A user receives an upload URL, a durable job record, meaningful progress, and a temporary download link when the work is complete.
 

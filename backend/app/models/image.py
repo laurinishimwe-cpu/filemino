@@ -183,6 +183,7 @@ def resolve_image_output_format(
     ``AUTO`` is intentionally predictable: it retains the source for the
     least aggressive mode, uses WebP for PNG compression work (which also
     keeps alpha), and otherwise retains the already-lossy source format.
+    Sources the encoder cannot write (AVIF, BMP, ICO, TIFF) become WebP.
     """
     normalized = source_format.upper()
     if requested is ImageOutputFormat.JPEG:
@@ -195,4 +196,4 @@ def resolve_image_output_format(
         return "WEBP"
     if has_alpha:
         return "WEBP"
-    return normalized
+    return normalized if normalized in {"JPEG", "PNG", "WEBP"} else "WEBP"
